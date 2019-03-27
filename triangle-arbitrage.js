@@ -117,9 +117,13 @@ tpairs.forEach(symbol => {
     let sub = symbol.substring(4) //Last 3 chars of symbol, 'ETH' 'BTC' 'USD' etc
   ws.onOrderBook({ symbol, precision:"P4" }, async (ob) => {
 
-    symbolOB[symbol]['midprice'] = ob.midPrice()  
-    ob.bids[0] != null ? symbolOB[symbol]['bids'] = ob.bids : null
-    ob.asks[0] != null ? symbolOB[symbol]['asks'] = ob.asks : null
+    symbolOB[symbol]['midprice'] = ob.midPrice()
+      
+    if (ob.bids[0] != null) 
+      symbolOB[symbol]['bids'] = ob.bids;
+      
+    if (ob.asks[0] != null) 
+      symbolOB[symbol]['asks'] = ob.asks;
 
     while(symbolOB[symbol]['midprice'] !== symbolOB[symbol]['lastmidprice'] && sub == "ETH"){
 
