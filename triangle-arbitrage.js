@@ -49,6 +49,9 @@ ws.once('auth', () => {
   getOBs()
 })
 
+
+/* FUNCTIONS */
+
 // Add subscribeTrades after OB processes are done
 /*
 let subscribeTrades = function () {
@@ -61,7 +64,7 @@ let subscribeOBs = function () {
   tpairs.forEach(pair => {
     ws.subscribeOrderBook(pair) ? console.log('Subscribed to %s ',chalk.bold(pair)) : console.log('Failed to subscribe to %s '.red,pair)
     symbolOB[pair] = {bids:{}, asks:{}, midprice:{}, lastmidprice:{}}
-    arbTrades[pair] = {p1:[], p2:[], p3:[], minAmount:[]}  
+    arbTrades[pair] = {p1:{}, p2:{}, p3:{}, minAmount:{}}  
     counter++
   })
   console.log('Subscribed to %s out of %s symbols.', chalk.bold(String(counter)), chalk.bold(String(tpairs.length)))
@@ -77,15 +80,20 @@ let arbCalc = function (p1,p2) {
     let crossrate = ((1/pair1ask[0]) * pair2bid[0]) / pair3ask[0] 
     let perc = 1 - crossrate
 
-    let minAmount = Math.min((pair1ask[2]),(pair2bid[2]))
+    let minAmount = Math.min((pair1ask[2])*-1,(pair2bid[2]))
     let minETHAmount = (pair3ask[2]/pair1ask[0])
 
     let symbols_string = String(p1) + ' > ' + String(p2) + ' > ' + String(p3) + ' | '
     let alt_amount = String(arbTrades[p1]['minAmount']*-1) + ' ' + (minETHAmount*-1).toFixed(3)
     let bidask_string = String(pair1ask[0].toFixed(6)) + ' ' + String(pair2bid[0].toFixed(6)) + ' ' + chalk.bold(String(pair3ask[0].toFixed(6)))
     let crossrate_string = crossrate.toFixed(8).toString()
-
-    // arbTrade array
+    
+    if (minETHAmount*-1 < minAmount*1) // ask amounts are negative
+      minAmount = minETHAmount
+    else
+      minAmount = minAmount
+    
+    // arbTrade array {}
     arbTrades[p1]['p1'] = pair1ask
     arbTrades[p1]['p2'] = pair2bid
     arbTrades[p1]['p3'] = pair3ask
@@ -95,7 +103,7 @@ let arbCalc = function (p1,p2) {
         console.log(symbols_string.green, chalk.bold(alt_amount) , '(' , pair3ask[2]*-1 ,'ETH )' ,'->',bidask_string, chalk.magenta('crossrate:'), chalk.bold.yellow(crossrate_string))
       }
     else {
-        console.log(symbols_string.green, chalk.bold(alt_amount), '(' , pair3ask[2]*-1 ,'ETH )' , '->',bidask_string, chalk.magenta('crossrate:'), chalk.red.bold(crossrate_string))
+        console.log(symbols_string.green, chalk.bold(alt_amount), '(' , pair3ask[2]*-1 ,'ETH )' , '->',bidask_string, chalk.magenta('crossrate:'), chalk.red.bold(crossrate_string), arbTrades[p1])
       }  
   }
   catch(err) {
