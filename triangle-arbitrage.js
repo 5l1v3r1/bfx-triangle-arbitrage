@@ -1,7 +1,6 @@
 'use strict'
 
-process.env.DEBUG = 'bfx:examples:*'
-
+//process.env.DEBUG = '*'
 
 const debug = require('debug')('triangle-arbitrage')
 const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
@@ -32,20 +31,20 @@ const bfx = new BFX({
 const ws = bfx.ws(2) // WsV2
 
 ws.on('error', (err) => {
-  debug('error: %s', err)
+  console.log('error: %s', err)
 })
 
 ws.onMessage('', (msg) => {
-  debug(msg)
+//console.log("MESSAGE")
 })
 
 ws.on('open', () => {
-  debug('open')
+  console.log('open')
   ws.auth() 
 })
 
 ws.once('auth', () => {
-  debug('authenticated')
+  console.log('authenticated')
   subscribeOBs()
   getOBs()
 })
@@ -61,12 +60,12 @@ let subscribeOBs = function (){
   var counter = 0
   tpairs = rv2.ethbtcpairs
   tpairs.forEach(pair => {
-    ws.subscribeOrderBook(pair) ? debug('Subscribed to %s ',chalk.bold(pair)) : debug('Failed to subscribe to %s '.red,pair)
+    ws.subscribeOrderBook(pair) ? console.log('Subscribed to %s ',chalk.bold(pair)) : console.log('Failed to subscribe to %s '.red,pair)
     symbolOB[pair] = {bids:{}, asks:{}, midprice:{}, lastmidprice:{}}
     arbTrades[pair] = {p1:[], p2:[], p3:[], minAmount:[]}  
     counter++
   })
-  debug('Subscribed to %s out of %s symbols.', chalk.bold(String(counter)), chalk.bold(String(tpairs.length)))
+  console.log('Subscribed to %s out of %s symbols.', chalk.bold(String(counter)), chalk.bold(String(tpairs.length)))
 }
 //Sign off test
 //Pull entire order array and store in symbolOB 
@@ -95,10 +94,10 @@ let arbCalc = function (p1,p2){
   arbTrades[p1]['minAmount'] = minAmount
 
     if(crossrate >= (1 + profit)){
-      debug(symbols_string.green, chalk.bold(alt_amount) , '(' , pair3ask[2]*-1 ,'ETH )' ,'->',bidask_string, chalk.magenta('crossrate:'), chalk.bold.yellow(crossrate_string))
+      console.log(symbols_string.green, chalk.bold(alt_amount) , '(' , pair3ask[2]*-1 ,'ETH )' ,'->',bidask_string, chalk.magenta('crossrate:'), chalk.bold.yellow(crossrate_string))
     }
     else{
-      debug(symbols_string.green, chalk.bold(alt_amount), '(' , pair3ask[2]*-1 ,'ETH )' , '->',bidask_string, chalk.magenta('crossrate:'), chalk.red.bold(crossrate_string))
+      console.log(symbols_string.green, chalk.bold(alt_amount), '(' , pair3ask[2]*-1 ,'ETH )' , '->',bidask_string, chalk.magenta('crossrate:'), chalk.red.bold(crossrate_string))
     }  
 
   //Need to add trading fees func
@@ -106,8 +105,8 @@ let arbCalc = function (p1,p2){
   catch(err){
     let errmsg = err.message
     let errarr 
-    symbolOB[p1]['bids'] == null ? errarr = p1 : errarr = p2
-    debug(chalk.bold(errarr), errmsg.yellow)
+    symbolOB[p1]['asks'] == null ? errarr = p1 : errarr = p2
+    console.log(chalk.red.bold(errarr), errmsg.red, p2, symbolOB[p2])
   }
 }
 
@@ -125,8 +124,7 @@ tpairs.forEach(symbol => {
     while(symbolOB[symbol]['midprice'] !== symbolOB[symbol]['lastmidprice'] && sub == "ETH"){
 
       //Pair grouping, check first 4 letters of symbol then group with the other two by replacing substring.
-      let p1 = symbol
-      let p2
+      let p1 = symbol, p2;
       sub == "ETH" ? p2 = p1.replace(sub,"BTC") : null //Only looking for ETH pairs, optimize array when arbcalc is done
 
       //if conditions dont even work?? 
