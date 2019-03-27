@@ -6,7 +6,6 @@ const debug = require('debug')('triangle-arbitrage')
 const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const BFX = require('bitfinex-api-node')
 
-
 const log = require ('ololog').noLocate
 const ansi = require ('ansicolor').nice
 const style = require ('ansi-styles')
@@ -17,15 +16,16 @@ const API_SECRET = 'IJplAkD56ljxUPOs4lJbed0XfmhFaqzIrRsYeV5CvpP'
 
 //Pair Arrays
 //Need to use public API to update pairs automatically, filter out symbols that dont have multiple pairs to arb on.
+
 var tpairs = []   // "tETHBTC"
 var symbolOB = {} // {bids:[], asks:[], midprice:[], lastmidprice:[]}
 var arbTrades = {}// {p1:[], p2:[], p3:[], minAmount:[]}
 
-const bfx = new BFX({
+const bfx = new BFX ({
   apiKey: API_KEY,
   apiSecret: API_SECRET,
   manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
-  transform: true, // auto-transform array OBs to OrderBook objects
+  transform: true // auto-transform array OBs to OrderBook objects
 })
 
 const ws = bfx.ws(2) // WsV2
@@ -106,7 +106,7 @@ let arbCalc = function (p1,p2){
     let errmsg = err.message
     let errarr 
     symbolOB[p1]['asks'] == null ? errarr = p1 : errarr = p2
-    console.log(chalk.red.bold(errarr), errmsg.red, p2, symbolOB[p2])
+    console.log(chalk.red.bold(errarr), errmsg.red)
   }
 }
 
@@ -115,11 +115,11 @@ let getOBs = function () {
 tpairs.forEach(symbol => {
     symbolOB[symbol]['lastmidprice'] = -1
     let sub = symbol.substring(4) //Last 3 chars of symbol, 'ETH' 'BTC' 'USD' etc
-  ws.onOrderBook({ symbol, precision:"P3" }, async (ob) => {
+  ws.onOrderBook({ symbol, precision:"P4" }, async (ob) => {
 
     symbolOB[symbol]['midprice'] = ob.midPrice()  
-    symbolOB[symbol]['bids'] = ob.bids
-    symbolOB[symbol]['asks'] = ob.asks
+    ob.bids[0] != null ? symbolOB[symbol]['bids'] = ob.bids : null
+    ob.asks[0] != null ? symbolOB[symbol]['asks'] = ob.asks : null
 
     while(symbolOB[symbol]['midprice'] !== symbolOB[symbol]['lastmidprice'] && sub == "ETH"){
 
