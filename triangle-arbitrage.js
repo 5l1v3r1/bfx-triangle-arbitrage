@@ -87,7 +87,7 @@ let arbCalc = function (p1,p2) {
     let alt_amount = String(arbTrades[p1]['minAmount']*-1) + ' ' + (minETHAmount*-1).toFixed(3)
     let bidask_string = String(pair1ask[0].toFixed(6)) + ' ' + String(pair2bid[0].toFixed(6)) + ' ' + chalk.bold(String(pair3ask[0].toFixed(6)))
     let crossrate_string = crossrate.toFixed(8).toString()
-    
+    //test
     if (minETHAmount*-1 < minAmount*1) // ask amounts are negative
       minAmount = minETHAmount
     else
