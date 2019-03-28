@@ -1279,6 +1279,7 @@
       "resolved": "https://registry.npmjs.org/cli-cursor/-/cli-cursor-2.1.0.tgz",
       "version": "2.1.0"
     },
+    "cli-table2": "^0.2.0",
     "cli-width": {
       "integrity": "sha1-/xnt6Kml5XkyQUewwR8PvLq+1jk=",
       "resolved": "https://registry.npmjs.org/cli-width/-/cli-width-2.2.0.tgz",
