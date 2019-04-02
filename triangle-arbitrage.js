@@ -30,9 +30,10 @@ const bfx = new BFX ({
   transform: true // auto-transform array OBs to OrderBook objects
 })
 
-const rest = bfx.rest(2)
-
+const rest = bfx.rest(2) //RESTv2
 const ws = bfx.ws(2) // WsV2
+
+// VSC git push through terminal test
 
 ws.on('error', (err) => {
   console.log('error: %s', err)
@@ -48,13 +49,15 @@ ws.on('open', () => {
 })
 
 ws.once('auth', async () => {
-  console.log('authenticated')
-  ws.enableSequencing({ audit: true })
   balances = await rest.balances()
   console.log(balances)
-  subscribeOBs()
-  getOBs()
+  console.log('authenticated')
+
+  ws.enableSequencing({ audit: true })
+  let subscribe = await subscribeOBs()
+  let pullOB = await getOBs();
 })
+
 
 /* FUNCTIONS */
 
@@ -67,25 +70,66 @@ let subscribeTrades = function () {
 
 //let tradingManager
 
-let subscribeOBs = function () {
+function pushToArray(arr, obj) {
+  const index = arr.findIndex((e) => e.id === obj.id);
+
+  if (index === -1) {
+      arr.push(obj);
+  } else {
+      arr[index] = obj;
+  }
+}
+
+async function subscribeOBs () {
   
-  var counter = 0
+  let counter = 0
   tpairs = rv2.ethbtcpairs
   
-  tpairs.forEach(pair => {
+  await tpairs.forEach ( async (pair) => {
 
-    ws.subscribeOrderBook(pair) 
-      ? console.log('Subscribed to %s ',chalk.bold(pair)) 
-      : console.log('Failed to subscribe to %s '.red,pair)
-
-    symbolOB[pair] = {bids:{}, asks:{}, midprice:{}, lastmidprice:{}}
-    arbTrades[pair] = {p1:{}, p2:{}, p3:{}, minAmount:{}}  
-    counter++
+    let subscribe = await ws.subscribeOrderBook(pair)
     
-  })
+    if(subscribe.err) {
 
-  console.log('Subscribed to %s out of %s symbols.', chalk.bold(String(counter)), chalk.bold(String(tpairs.length)))
+      console.log(err);
 
+    } else {
+
+      console.log('Subscribed to %s', pair);
+      symbolOB[pair] = {bids:{}, asks:{}, midprice:{}, lastmidprice:{}}
+      arbTrades[pair] = {p1:{}, p2:{}, p3:{}, minAmount:{}}  
+      counter++
+
+    }
+
+  }); 
+  
+  console.log("Subscribed to %d out of %d", counter, tpairs.length)
+
+}
+
+// 'ob' is a full OrderBook instance, with sorted arrays 'bids' & 'asks'  
+async function getOBs() {
+
+    await tpairs.forEach(async (symbol) => {
+      
+      let sub = symbol.substring(4) //Last 3 chars of symbol, 'ETH' 'BTC' 'USD' etc
+      
+      symbolOB[symbol]['lastmidprice'] = -1
+    
+      console.log(symbol)
+
+      ws.onOrderBook({ symbol:symbol, precision:"P3"}, async (ob) => {
+
+      console.log(ob)
+      
+        
+      })
+
+    })
+
+  console.log(chalk.bold("DONE"))
+  
 }
 
 let arbCalc = async function (p1,p2) {
@@ -94,9 +138,11 @@ let arbCalc = async function (p1,p2) {
   
   try{
     
-    let pair1ask = symbolOB[p1]['asks'][0]
-    let pair2bid = symbolOB[p2]['bids'][0]
-    let pair3ask = symbolOB[p3]['asks'][0] //Pair constraint
+    let pair1ask = await symbolOB[p1]['asks'][0]
+    let pair2bid = await symbolOB[p2]['bids'][0]
+    let pair3ask = await symbolOB[p3]['asks'][0] //Pair constraint
+
+    console.log('PAIR1ASK:', pair1ask, symbolOB[p1], 'PAIR2BID:', pair2bid, symbolOB[p2])
     
     let profit = 0.0 //percentage of profit required to trigger,  
     let crossrate = ((1/pair1ask[0]) * pair2bid[0]) / pair3ask[0] 
@@ -132,46 +178,11 @@ let arbCalc = async function (p1,p2) {
   catch(err) {
     let errmsg = err.message
     let errarr 
-    symbolOB[p1]['asks'] == null ? errarr = p1 : errarr = p2
-    console.log(chalk.red.bold(errarr), errmsg.red, symbolOB[errarr], err)
+    symbolOB[p1]['asks'] == undefined ? errarr = p1 : errarr = p2
+    console.log(chalk.red.bold(errarr), errmsg.red, symbolOB[p1], symbolOB[p2], err)
   }
 }
 
-// 'ob' is a full OrderBook instance, with sorted arrays 'bids' & 'asks'  
-let getOBs = function () {
-
-  tpairs.forEach(symbol => {
-    let sub = symbol.substring(4) //Last 3 chars of symbol, 'ETH' 'BTC' 'USD' etc
-
-    symbolOB[symbol]['bids'] = 0
-    symbolOB[symbol]['asks'] = 0    
-    symbolOB[symbol]['midprice'] = -1
-    symbolOB[symbol]['lastmidprice'] = -1
-
-    ws.onOrderBook({ symbol, precision:"P4" }, async (ob) => {
-    
-      symbolOB[symbol]['midprice'] = await ob.midPrice() 
-      symbolOB[symbol]['bids'] = await ob.bids;
-      symbolOB[symbol]['asks'] = await ob.asks;
-
-      console.log(symbolOB[symbol])
-      
-      if(symbolOB[symbol]['midprice'] !== symbolOB[symbol]['lastmidprice'] && sub == "ETH") {
-        //Pair grouping, check first 4 letters of symbol then group with the other two by replacing substring.
-        p1 = symbol;
-
-        if (sub == "ETH") 
-          p2 = p1.replace(sub,"BTC") //Only looking for ETH pairs, optimize array when arbcalc is done
-
-        if (symbolOB[p1]['asks'] != null && symbolOB[p2]['bids'] != null && symbolOB['tETHBTC']['bids'] != null ){
-          console.log(p1, p2)
-          arbCalc(p1, p2)  
-        }
-        symbolOB[symbol]['lastmidprice'] = symbolOB[symbol]['midprice'] //Set lastmidprice
-        }  
-    })
-  })
-}
 log("Finished!".green)//Finished symbolOB loop
 
 ws.open()
