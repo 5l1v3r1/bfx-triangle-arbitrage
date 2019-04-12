@@ -29,7 +29,7 @@ var sockets = []
 const bfx = new BFX ({
   apiKey: API_KEY,
   apiSecret: API_SECRET,
-  manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
+  manageOrderBooks: false, // tell the ws client to maintain full sorted OBs
   transform: true // auto-transform array OBs to OrderBook objects
 })
 
@@ -113,7 +113,6 @@ function indexOfdifference (arr, arr2,val) {
   
 }
 
-
 async function subscribeOBs () {
   
   let counter = 0
@@ -156,7 +155,7 @@ async function getOBs() {
         let bids = update.bids;
         let asks = update.asks;
 
-        ////console.log(symbol,cbGID.chanId)
+        //console.log(symbol,update)
 
         if (bids.length !== 0) {
 
@@ -180,7 +179,7 @@ async function getOBs() {
             
             ////console.log(chalk.yellow("finished filling symbolOB."))
 
-            if (currentBids[0].length !== 1) {
+            if (currentBids[0].length > 1) {
 
               //console.log(chalk.bold(symbol), currentBids[0].length, bids.length, difference.length)
               
@@ -196,17 +195,20 @@ async function getOBs() {
 
                 
               }
+              
+              if (typeof currentBids[0][0] !== 'undefined') {
                 let sub = symbol.substring(4);
                 let p1 = symbol, p2;
 
                 if (sub == "ETH") {
                   p2 = symbol.replace(sub, "BTC")
                   arbCalc(p1,p2)
-                } else if (sub == "BTC") {
+                } else if (sub == "BTC" && symbol !== "tETHBTC") {
                   p2 = symbol.replace(sub, "ETH")
                   arbCalc(p2,p1) 
                 }
-        
+              
+              }
           }
         
         }
@@ -234,7 +236,7 @@ async function getOBs() {
             
             ////console.log(chalk.yellow("finished filling symbolOB."))
 
-            if (currentAsks[0].length !== 1) {
+            if (currentAsks[0].length > 1) {
 
               //console.log(chalk.bold(symbol), currentAsks[0].length, asks.length, difference.length)
               
@@ -250,17 +252,18 @@ async function getOBs() {
 
                 
               }
-                let sub = symbol.substring(4);
-                let p1 = symbol, p2;
+                if (typeof currentAsks[0][0] !== 'undefined') {
+                  let sub = symbol.substring(4);
+                  let p1 = symbol, p2;
 
-                if (sub == "ETH") {
-                  p2 = symbol.replace(sub, "BTC")
-                  arbCalc(p1,p2)
-                } else if (sub == "BTC") {
-                  p2 = symbol.replace(sub, "ETH")
-                  arbCalc(p2,p1) 
-                }
-        
+                   if (sub == "ETH") {
+                    p2 = symbol.replace(sub, "BTC")
+                    arbCalc(p1,p2)
+                  } else if (sub == "BTC" && symbol !== "tETHBTC") {
+                    p2 = symbol.replace(sub, "ETH")
+                    arbCalc(p2,p1) 
+                  }
+              }
           }
         
         }
@@ -294,9 +297,12 @@ let arbCalc = async function (p1,p2) {
     let minETHAmount = (pair3ask[2]/pair1ask[0])
 
     let symbols_string = String(p1) + ' > ' + String(p2) + ' > ' + String(p3) + ' | '
-    let alt_amount = String(arbTrades[p1]['minAmount']*-1) + ' ' + (minETHAmount*-1).toFixed(3)
+    let alt_amount = String(arbTrades[p1]['minAmount']) + ' ' + (minETHAmount).toFixed(3)
     let bidask_string = String(pair1ask[0]) + ' ' + String(pair2bid[0]) + ' ' + chalk.bold(String(pair3ask[0]))
     let crossrate_string = crossrate.toFixed(8).toString()
+    
+    let makerFee = 0.1;
+    let takerFee = 0.2;
     
     // VSC git test: publish
     if (minETHAmount*-1 < minAmount*1) // ask amounts are negative
@@ -305,7 +311,7 @@ let arbCalc = async function (p1,p2) {
       minAmount = minAmount
 
     // arbTrade array {}
-    arbTrades[p1]['p1'] = pair1ask
+    arbTrades[p1]['p1'] = pair1ask 
     arbTrades[p1]['p2'] = pair2bid
     arbTrades[p1]['p3'] = pair3ask
     arbTrades[p1]['minAmount'] = minAmount
@@ -315,13 +321,15 @@ let arbCalc = async function (p1,p2) {
       }
     else {
         console.log(symbols_string.green, chalk.bold(alt_amount), '(' , pair3ask[2]*-1 ,'ETH )' , '->',bidask_string, chalk.magenta('crossrate:'), chalk.red.bold(crossrate_string))
+        //console.log(symbolOB[p3])
       }  
   }
   catch(err) {
     let errmsg = err.message
     let errarr 
-    symbolOB[p1]['asks'] == undefined ? errarr = p1 : errarr = p2
-    console.log(chalk.red.bold(errarr), errmsg.red, symbolOB[p1], symbolOB[p2], err)
+    console.log(p1,p2)
+    //symbolOB[p1]['asks'] == undefined ? errarr = p1 : errarr = p2
+    console.log(chalk.red.bold(errarr), errmsg.red, err)
   }
 }
 
