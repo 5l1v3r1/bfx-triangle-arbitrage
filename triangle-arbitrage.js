@@ -74,6 +74,7 @@ let subscribeTrades = function () {
 
 //let tradingManager
 
+
 function pushToArray(arr, obj) {
   const index = arr.findIndex((e) => e.id === obj.id);
 
@@ -82,12 +83,6 @@ function pushToArray(arr, obj) {
   } else {
       arr[index] = obj;
   }
-}
-
-function difference(arr1, arr2) {
-
-  return arr2.filter(x => !arr1.includes(x));
-
 }
  
 function symbolTriplet (symbol) {
@@ -109,8 +104,70 @@ async function wsTriplet (val) {
   
 }
 
-function indexOfdifference (arr, arr2,val) {
-  
+function obUpdate (symbol,update,bidask) {
+
+  let currentOB = [symbolOB[symbol][bidask]]  //get bid snapshot from symbolOB to compare with
+  let difference =  update.filter(x => !currentOB.includes(x)); //Find difference in symbolOB and update
+
+  if (update.length !== 0 ) {
+
+    //currentOB length == 1, means empty array [], so fill with loop
+    if (currentOB[0].length == 1 ) {
+
+      for (let i in difference) {
+
+        symbolOB[symbol][bidask][i] = difference[i]
+
+      }
+
+    if (currentOB[0].length > 1) {
+
+      if (difference) {
+
+        for (let i in difference) {
+          
+          console.log(symbol, bidask, "diff:",difference[i][0], "- currOB:", currentOB[0][0][0])
+          
+          if (bidask == 'bid') {
+
+            let index = Math.max(difference[i][0],currentOB[0][0][0])
+            symbolOB[symbol][bidask][index] = difference[i] 
+
+          }
+
+          if (bidask == 'ask') {
+
+            let index = Math.min(difference[i][0],currentOB[0][0][0])
+            symbolOB[symbol][bidask][index] = difference[i] 
+          
+          }
+        }
+      }
+    }
+    }
+
+    if (typeof currentOB[0][0] !== 'undefined') {
+              
+      let sub = symbol.substring(4);
+      let p1 = symbol, p2;
+      
+      if (sub == "ETH") {
+        
+        p2 = symbol.replace(sub, "BTC")
+        arbCalc(p1,p2)
+      
+      } 
+      
+      if (sub == "BTC" && symbol !== "tETHBTC") {
+        
+        p2 = symbol.replace(sub, "ETH")
+        arbCalc(p2,p1) 
+      
+      }              
+    }
+  }  
+
+
 }
 
 async function subscribeOBs () {
@@ -155,120 +212,9 @@ async function getOBs() {
         let bids = update.bids;
         let asks = update.asks;
 
-        //console.log(symbol,update)
+        obUpdate(symbol, update.bids,'bids')
+        obUpdate(symbol, update.asks,'asks')
 
-        if (bids.length !== 0) {
-
-          let currentBids = [symbolOB[symbol]['bids']] // get bid snapshot from symbolOB to compare with
-          let difference = bids.filter(x => !currentBids.includes(x)); //Find difference in symbolOB and update
-
-            if (currentBids[0].length == 1) {
-              //Fill empty array first
-              let i;
-              //console.log(chalk.bold(symbol), currentBids[0].length, difference.length)
-              //console.log(currentBids[0],difference)
-              //console.log(chalk.bold(symbol), "updating from difference", currentBids[0].length,"->",difference.length)
-              for ( i in difference ) {
-
-                  symbolOB[symbol]['bids'][i] = difference[i]
-
-              }
-              //console.log(chalk.bold(symbol), symbolOB[symbol]['bids'].length, symbolOB[symbol].bids[0][0], symbolOB[symbol].bids[1][0],symbolOB[symbol].bids[2][0])
-              //console.log("---")
-            }
-            
-            ////console.log(chalk.yellow("finished filling symbolOB."))
-
-            if (currentBids[0].length > 1) {
-
-              //console.log(chalk.bold(symbol), currentBids[0].length, bids.length, difference.length)
-              
-              if(difference) {
-                for (let i in difference) {
-
-                  let index = Math.min(difference[i][0],currentBids[0][0][0])
-
-                  ////console.log(`replacing symbolOB[${symbol}]['bids'][${index}] with difference[${i}]: ${symbolOB[symbol]['bids'][index]} -> ${difference[i]} `)  
-                  symbolOB[symbol]['bids'][index] = difference[i] 
-
-                }
-
-                
-              }
-              
-              if (typeof currentBids[0][0] !== 'undefined') {
-                let sub = symbol.substring(4);
-                let p1 = symbol, p2;
-
-                if (sub == "ETH") {
-                  p2 = symbol.replace(sub, "BTC")
-                  arbCalc(p1,p2)
-                } else if (sub == "BTC" && symbol !== "tETHBTC") {
-                  p2 = symbol.replace(sub, "ETH")
-                  arbCalc(p2,p1) 
-                }
-              
-              }
-          }
-        
-        }
-
-        
-        if (asks.length !== 0) {
-
-          let currentAsks = [symbolOB[symbol]['asks']] // get bid snapshot from symbolOB to compare with
-          let difference = asks.filter(x => !currentAsks.includes(x)); //Find difference in symbolOB and update
-
-            if (currentAsks[0].length == 1) {
-              //Fill empty array first
-              let i;
-              //console.log(chalk.bold(symbol), currentAsks[0].length, difference.length)
-              //console.log(currentAsks[0],difference)
-              //console.log(chalk.bold(symbol), "updating from difference", currentAsks[0].length,"->",difference.length)
-              for ( i in difference ) {
-
-                  symbolOB[symbol]['asks'][i] = difference[i]
-
-              }
-              //console.log(chalk.bold(symbol), symbolOB[symbol]['asks'].length, symbolOB[symbol].asks[0][0], symbolOB[symbol].asks[1][0],symbolOB[symbol].asks[2][0])
-              //console.log("---")
-            }
-            
-            ////console.log(chalk.yellow("finished filling symbolOB."))
-
-            if (currentAsks[0].length > 1) {
-
-              //console.log(chalk.bold(symbol), currentAsks[0].length, asks.length, difference.length)
-              
-              if(difference) {
-                for (let i in difference) {
-
-                  let index = Math.min(difference[i][0],currentAsks[0][0][0])
-
-                  ////console.log(`replacing symbolOB[${symbol}]['asks'][${index}] with difference[${i}]: ${symbolOB[symbol]['asks'][index]} -> ${difference[i]} `)  
-                  symbolOB[symbol]['asks'][index] = difference[i] 
-
-                }
-
-                
-              }
-                if (typeof currentAsks[0][0] !== 'undefined') {
-                  let sub = symbol.substring(4);
-                  let p1 = symbol, p2;
-
-                   if (sub == "ETH") {
-                    p2 = symbol.replace(sub, "BTC")
-                    arbCalc(p1,p2)
-                  } else if (sub == "BTC" && symbol !== "tETHBTC") {
-                    p2 = symbol.replace(sub, "ETH")
-                    arbCalc(p2,p1) 
-                  }
-              }
-          }
-        
-        }
-
-        
       })
 
     })
@@ -315,7 +261,7 @@ let arbCalc = async function (p1,p2) {
     arbTrades[p1]['p2'] = pair2bid
     arbTrades[p1]['p3'] = pair3ask
     arbTrades[p1]['minAmount'] = minAmount
-
+    
     if (crossrate >= (1 + profit)) {
         console.log(symbols_string.green, chalk.bold(alt_amount) , '(' , pair3ask[2]*-1 ,'ETH )' ,'->',bidask_string, chalk.magenta('crossrate:'), chalk.bold.yellow(crossrate_string))
       }
