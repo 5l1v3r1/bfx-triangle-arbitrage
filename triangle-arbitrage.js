@@ -119,6 +119,7 @@ function obUpdate (symbol,update,bidask) {
         symbolOB[symbol][bidask][i] = difference[i]
 
       }
+    }
 
     if (currentOB[0].length > 1) {
 
@@ -144,7 +145,7 @@ function obUpdate (symbol,update,bidask) {
         }
       }
     }
-    }
+    
 
     if (typeof currentOB[0][0] !== 'undefined') {
               
