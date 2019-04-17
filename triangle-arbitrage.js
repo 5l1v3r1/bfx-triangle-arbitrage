@@ -132,7 +132,6 @@ function obUpdate (symbol,update,bidask) {
   let currentOB = [symbolOB[symbol][bidask]]  //get bid snapshot from symbolOB to compare with
   let difference =  update.filter(x => !currentOB.includes(x)); //Find difference in symbolOB and update
   
-  
   try {
   if (update.length !== 0 ) {
 
@@ -140,9 +139,11 @@ function obUpdate (symbol,update,bidask) {
     if (currentOB[0].length == 1) {
 
       for (let i in difference) {
-        //console.log(symbol, "loop", i, difference[i])
-        symbolOB[symbol][bidask][i] = difference[i]
 
+        if (difference[i][1] !== '0') {
+          console.log(symbol, "loop", i, difference[i])
+          symbolOB[symbol][bidask][i] = difference[i]
+        }
       }
       
     }
@@ -150,7 +151,8 @@ function obUpdate (symbol,update,bidask) {
     //if not empty, replace/remove existing values with updates
     else if (currentOB[0].length > 1) {
       
-      console.log(symbol, "Array not empty", currentOB[0].length)
+      console.log(symbol, "currentOB Length:", currentOB[0].length, "update Length:", update.length)
+
       for (let k in update) {
 
         //Check if currentOB contains an update with same price
@@ -165,33 +167,64 @@ function obUpdate (symbol,update,bidask) {
             console.log(`${symbol} removing ${symbolOB[symbol][bidask][index]} [${index}] from orderbook.`)
             symbolOB[symbol][bidask].splice(index,1)
             console.log(`index [${index}] is now ${symbolOB[symbol][bidask][index]}`)
-          
+            update.splice(k, 1) // remove '0' order from update as well
+            currentOB = [symbolOB[symbol][bidask]] // update currentOB
+            difference = update.filter(x => !currentOB.includes(x)) // update difference to remove elements already used to update
             
           } 
           // finally, check if amounts are different and replace with new
           else if (currentOB[0][k][2] !== update[k][2]) {
+            
             console.log(`${symbol} Amount change, ${currentOB[0][k][2]} -> ${update[k][2]}`)
             symbolOB[symbol][bidask][index] = update[k]
+            currentOB = [symbolOB[symbol][bidask]] // update currentOB
+            update.splice(k, 1) // remove order from update as well
+            difference = update.filter(x => !currentOB.includes(x)) // update difference to remove elements already used to update
 
           }
 
+        } else {
+          
+          if (update[k][1] == '0') {
+
+            update.splice(k,1) //remove unecessary '0' order
+            difference = update.filter(x => !currentOB.includes(x)) // update difference to remove elements already used to update
+
+          } else {
+
+            let test = currentOB.includes(update[k][0])
+            console.log(symbol, "currentOB does not include", update[k], test)
+          
+          }
         }
 
       }
 
+      
+
       if (difference) {
 
-        console.log(symbol,"DIFFERENCE LOOP:", difference.length)
+        console.log(symbol, difference.length, "DIFFERENCE(s)")
 
         for (let i in difference) {
           
-          console.log(symbol, bidask, i, "diff:",difference[i][0], "- currOB:", currentOB[0][0][0])
-          if(bidask == 'bids') {
+          if (bidask == 'bids') {
             
-          
+            console.log(symbol, bidask, i, "diff:",difference[i], "currOB:", currentOB[0][i])
+            
+            if (difference[i][0] > currentOB[0][0][0]) {
 
+              symbolOB[symbol][bidask][0] = difference[i]
 
+            } else {
+
+            console.log("Havent done this part yet", difference[i], "is not in symbolOB array.")
+
+            }
+        
           }
+
+
 
         }
 
@@ -208,14 +241,14 @@ function obUpdate (symbol,update,bidask) {
       if (sub == "ETH") {
         
         p2 = symbol.replace(sub, "BTC")
-        arbCalc(p1,p2)
+        //arbCalc(p1,p2)
       
       } 
       
       if (sub == "BTC" && symbol !== "tETHBTC") {
         
         p2 = symbol.replace(sub, "ETH")
-        arbCalc(p2,p1) 
+        //arbCalc(p2,p1) 
       
       }              
     }
