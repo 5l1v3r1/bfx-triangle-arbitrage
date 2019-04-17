@@ -29,7 +29,7 @@ var sockets = []
 const bfx = new BFX ({
   apiKey: API_KEY,
   apiSecret: API_SECRET,
-  manageOrderBooks: false, // tell the ws client to maintain full sorted OBs
+  manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
   transform: true // auto-transform array OBs to OrderBook objects
 })
 
@@ -96,6 +96,29 @@ function symbolTriplet (symbol) {
   
 }
 
+var compare = function(array1, array2) {
+  // if the other array is a falsy value, return
+  if (!array2)
+    return false;
+
+  // compare leng ths - can save a lot of time
+  if (array1.length != array2.length)
+    return false;
+
+  for (var i = 0; i < array1.length; i++) {
+    // Check if we have nested arrays
+    if (array1[i] instanceof Array && array2[i] instanceof Array) {
+      // recurse into the nested arrays
+      if (!compare(array1[i], array2[i]))
+        return false;
+    } else if (array1[i] != array2[i]) {
+      // Warning - two different object instances will never be equal: {x:20} != {x:20}
+      return false;
+    }
+  }
+  return true;
+}
+
 async function wsTriplet (val) {
 
   val = bfx.ws(2)
@@ -108,44 +131,74 @@ function obUpdate (symbol,update,bidask) {
 
   let currentOB = [symbolOB[symbol][bidask]]  //get bid snapshot from symbolOB to compare with
   let difference =  update.filter(x => !currentOB.includes(x)); //Find difference in symbolOB and update
-
+  
+  
+  try {
   if (update.length !== 0 ) {
 
     //currentOB length == 1, means empty array [], so fill with loop
-    if (currentOB[0].length == 1 ) {
+    if (currentOB[0].length == 1) {
 
       for (let i in difference) {
-
+        //console.log(symbol, "loop", i, difference[i])
         symbolOB[symbol][bidask][i] = difference[i]
 
       }
+      
     }
 
-    if (currentOB[0].length > 1) {
+    //if not empty, replace/remove existing values with updates
+    else if (currentOB[0].length > 1) {
+      
+      console.log(symbol, "Array not empty", currentOB[0].length)
+      for (let k in update) {
+
+        //Check if currentOB contains an update with same price
+        if (currentOB[0][k].includes(update[k][0])) {
+
+          console.log(`${symbol} currentOB[0][${k}] includes ${update[k][0]} -> ${currentOB[0][k]} - ${update[k]}`)
+          let index = symbolOB[symbol][bidask].indexOf(currentOB[0][k]) 
+
+          // Check if '0' orders from update, remove from array
+          if (update[k][1] == '0') {
+
+            console.log(`${symbol} removing ${symbolOB[symbol][bidask][index]} [${index}] from orderbook.`)
+            symbolOB[symbol][bidask].splice(index,1)
+            console.log(`index [${index}] is now ${symbolOB[symbol][bidask][index]}`)
+          
+            
+          } 
+          // finally, check if amounts are different and replace with new
+          else if (currentOB[0][k][2] !== update[k][2]) {
+            console.log(`${symbol} Amount change, ${currentOB[0][k][2]} -> ${update[k][2]}`)
+            symbolOB[symbol][bidask][index] = update[k]
+
+          }
+
+        }
+
+      }
 
       if (difference) {
 
+        console.log(symbol,"DIFFERENCE LOOP:", difference.length)
+
         for (let i in difference) {
           
-          console.log(symbol, bidask, "diff:",difference[i][0], "- currOB:", currentOB[0][0][0])
+          console.log(symbol, bidask, i, "diff:",difference[i][0], "- currOB:", currentOB[0][0][0])
+          if(bidask == 'bids') {
+            
           
-          if (bidask == 'bid') {
 
-            let index = Math.max(difference[i][0],currentOB[0][0][0])
-            symbolOB[symbol][bidask][index] = difference[i] 
 
           }
 
-          if (bidask == 'ask') {
-
-            let index = Math.min(difference[i][0],currentOB[0][0][0])
-            symbolOB[symbol][bidask][index] = difference[i] 
-          
-          }
         }
+
       }
     }
     
+    /*      Final checks      */
 
     if (typeof currentOB[0][0] !== 'undefined') {
               
@@ -166,7 +219,10 @@ function obUpdate (symbol,update,bidask) {
       
       }              
     }
-  }  
+  } 
+} catch(err) {
+  console.log(symbol, err)
+}
 
 
 }
@@ -208,13 +264,21 @@ async function getOBs() {
 
     tpairs.forEach( async (symbol) => {
 
-      ws.onOrderBook({ symbol:symbol, precision:"P0"}, async (update, cbGID) => {
+      ws.onOrderBook({ symbol:symbol, precision:"P0"}, (update, cbGID) => {
 
         let bids = update.bids;
         let asks = update.asks;
+        var arr1 = [0.033, 1 ,120], arr2 = [0.033, 0, 1];
 
-        obUpdate(symbol, update.bids,'bids')
-        obUpdate(symbol, update.asks,'asks')
+        let test = compare(arr1,arr2) 
+        let test2
+        let test3 = arr1.includes(arr2[0])
+        arr1[0] == arr2[0] ? test2 = true : test2 = false
+
+        //console.log(symbol, test, test2, test3)
+
+        obUpdate(symbol, bids,'bids')
+        //obUpdate(symbol, asks,'asks')
 
       })
 
