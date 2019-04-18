@@ -4994,6 +4994,7 @@
       "resolved": "http://registry.npmjs.org/through2/-/through2-0.2.3.tgz",
       "version": "0.2.3"
     },
+    "timsort": "^0.3.0",
     "tmp": {
       "integrity": "sha512-jRCJlojKnZ3addtTOjdIqoRuPEKBvNXcGYqzO6zWZX8KfKEpnGY5jfggJQ3EjKuu8D4bJRr0y+cYJFmYbImXGw==",
       "requires": {

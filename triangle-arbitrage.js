@@ -11,6 +11,8 @@ const log = require ('ololog').noLocate
 const ansi = require ('ansicolor').nice
 const style = require ('ansi-styles')
 const chalk = require ('chalk')
+const TimSort = require('timsort');
+
 
 const API_KEY = 'jZ1hZvn5dDn1rP4PrEDmY7V5ZwJ5xzzqXXgCvict0Py'
 const API_SECRET = 'IJplAkD56ljxUPOs4lJbed0XfmhFaqzIrRsYeV5CvpP'
@@ -130,7 +132,7 @@ async function wsTriplet (val) {
 function obUpdate (symbol,update,bidask) {
 
   let currentOB = [symbolOB[symbol][bidask]]  //get bid snapshot from symbolOB to compare with
-  let difference =  update.filter(x => !currentOB.includes(x)); //Find difference in symbolOB and update
+  var difference =  update.filter(x => !currentOB.includes(x)); //Find difference in symbolOB and update
   
   try {
   if (update.length !== 0 ) {
@@ -138,20 +140,23 @@ function obUpdate (symbol,update,bidask) {
     //currentOB length == 1, means empty array [], so fill with loop
     if (currentOB[0].length == 1) {
 
+      //Populate symbolOB initially.
       for (let i in difference) {
 
         if (difference[i][1] !== '0') {
           console.log(symbol, "loop", i, difference[i])
-          symbolOB[symbol][bidask][i] = difference[i]
+          symbolOB[symbol][bidask].push(difference[i])
+          //console.log(symbol, i, symbolOB[symbol][bidask][i], "<-",difference[i])
         }
       }
+      console.log(symbol, "Initial elements added.")
       
     }
 
     //if not empty, replace/remove existing values with updates
     else if (currentOB[0].length > 1) {
       
-      console.log(symbol, "currentOB Length:", currentOB[0].length, "update Length:", update.length)
+      console.log(symbol, "currentOB Length:", currentOB[0].length, currentOB[0][currentOB[0].length-1], " update Length:", update.length, update[0])
 
       for (let k in update) {
 
@@ -161,18 +166,19 @@ function obUpdate (symbol,update,bidask) {
           console.log(`${symbol} currentOB[0][${k}] includes ${update[k][0]} -> ${currentOB[0][k]} - ${update[k]}`)
           let index = symbolOB[symbol][bidask].indexOf(currentOB[0][k]) 
 
-          // Check if '0' orders from update, remove from array
+          // Check if update is '0' order, remove from array.
           if (update[k][1] == '0') {
 
             console.log(`${symbol} removing ${symbolOB[symbol][bidask][index]} [${index}] from orderbook.`)
-            symbolOB[symbol][bidask].splice(index,1)
+            symbolOB[symbol][bidask].splice(index,1) // remove order from symbolOB
             console.log(`index [${index}] is now ${symbolOB[symbol][bidask][index]}`)
             update.splice(k, 1) // remove '0' order from update as well
             currentOB = [symbolOB[symbol][bidask]] // update currentOB
             difference = update.filter(x => !currentOB.includes(x)) // update difference to remove elements already used to update
             
           } 
-          // finally, check if amounts are different and replace with new
+
+          // else, check if amounts are different and replace with new
           else if (currentOB[0][k][2] !== update[k][2]) {
             
             console.log(`${symbol} Amount change, ${currentOB[0][k][2]} -> ${update[k][2]}`)
@@ -186,50 +192,30 @@ function obUpdate (symbol,update,bidask) {
         } else {
           
           if (update[k][1] == '0') {
-
+            console.log(symbol,"Useless '0' order. Ignoring")
             update.splice(k,1) //remove unecessary '0' order
             difference = update.filter(x => !currentOB.includes(x)) // update difference to remove elements already used to update
 
           } else {
-
+            let symOBLen;
             let test = currentOB.includes(update[k][0])
+
             console.log(symbol, "currentOB does not include", update[k], test)
-          
+            console.log(symbol, "pushing", update[k], "into symOB, then timsort")
+            
+            symbolOB[symbol][bidask].push(update[k])
+            symOBLen = symbolOB[symbol][bidask].length;
+
+            TimSort.sort(symbolOB[symbol][bidask]) 
+            console.log(`${symbol} timsort - index of ${update[k]} is now ${symbolOB[symbol][bidask].indexOf(update[k])}`)
+
           }
         }
 
-      }
-
-      
-
-      if (difference) {
-
-        console.log(symbol, difference.length, "DIFFERENCE(s)")
-
-        for (let i in difference) {
-          
-          if (bidask == 'bids') {
-            
-            console.log(symbol, bidask, i, "diff:",difference[i], "currOB:", currentOB[0][i])
-            
-            if (difference[i][0] > currentOB[0][0][0]) {
-
-              symbolOB[symbol][bidask][0] = difference[i]
-
-            } else {
-
-            console.log("Havent done this part yet", difference[i], "is not in symbolOB array.")
-
-            }
-        
-          }
-
-
-
-        }
-
-      }
+      }  
     }
+
+    console.log("-------------")
     
     /*      Final checks      */
 
