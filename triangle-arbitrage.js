@@ -141,11 +141,11 @@ function obUpdate (symbol,update,bidask) {
     if (currentOB[0].length == 1) {
 
       //Populate symbolOB initially.
-      for (let i in difference) {
+      for (let i = 0; i <= difference.length -1; i++) {
 
         if (difference[i][1] !== '0') {
           console.log(symbol, "loop", i, difference[i])
-          symbolOB[symbol][bidask].push(difference[i])
+          symbolOB[symbol][bidask][i] = difference[i]
           //console.log(symbol, i, symbolOB[symbol][bidask][i], "<-",difference[i])
         }
       }
@@ -197,6 +197,7 @@ function obUpdate (symbol,update,bidask) {
             difference = update.filter(x => !currentOB.includes(x)) // update difference to remove elements already used to update
 
           } else {
+
             let symOBLen;
             let test = currentOB.includes(update[k][0])
 
@@ -205,13 +206,12 @@ function obUpdate (symbol,update,bidask) {
             
             symbolOB[symbol][bidask].push(update[k])
             symOBLen = symbolOB[symbol][bidask].length;
-
+            
             TimSort.sort(symbolOB[symbol][bidask]) 
-            console.log(`${symbol} timsort - index of ${update[k]} is now ${symbolOB[symbol][bidask].indexOf(update[k])}`)
-
+            console.log(`${symbol} timsort ${bidask} - Index of [ ${chalk.yellow(update[k])} ] is now [${symbolOB[symbol][bidask].indexOf(update[k])}/${symOBLen-1}]`)
+            console.log(symbol, bidask,symbolOB[symbol][bidask][0], symbolOB[symbol][bidask][1],symbolOB[symbol][bidask][2])
           }
         }
-
       }  
     }
 
@@ -227,14 +227,14 @@ function obUpdate (symbol,update,bidask) {
       if (sub == "ETH") {
         
         p2 = symbol.replace(sub, "BTC")
-        //arbCalc(p1,p2)
+        arbCalc(p1,p2)
       
       } 
       
       if (sub == "BTC" && symbol !== "tETHBTC") {
         
         p2 = symbol.replace(sub, "ETH")
-        //arbCalc(p2,p1) 
+        arbCalc(p2,p1) 
       
       }              
     }
@@ -287,17 +287,11 @@ async function getOBs() {
 
         let bids = update.bids;
         let asks = update.asks;
-        var arr1 = [0.033, 1 ,120], arr2 = [0.033, 0, 1];
-
-        let test = compare(arr1,arr2) 
-        let test2
-        let test3 = arr1.includes(arr2[0])
-        arr1[0] == arr2[0] ? test2 = true : test2 = false
 
         //console.log(symbol, test, test2, test3)
 
         obUpdate(symbol, bids,'bids')
-        //obUpdate(symbol, asks,'asks')
+        obUpdate(symbol, asks,'asks')
 
       })
 
