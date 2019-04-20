@@ -1,7 +1,32 @@
-
+<html>
+    <head>
+        <meta http-equiv="refresh" content="5">
+        <link href='https://fonts.googleapis.com/css?family=Assistant' rel='stylesheet'>
+        <style>
+          body {
+              font-family: 'Assistant';font-size: 18px;
+          }
+        </style>
+      </head>
 <h1>
   BFX-Triangle-Arbitrage
 </h1>
 <p>
-  Index
+  Kefe
 </p>
+<body>
+ <table> 
+  <tbody>
+      <% for (var element in paircycle) {%>
+      <tr>
+        <td><b><%=element%></b></td>
+        <td><%=paircycle[element]['p1'][0]%><%=paircycle[element]['p2'][0]%></td>
+        <td><%=paircycle[element]['p3'][0]%></td>
+        <td><%=paircycle[element]['minAmount']%></td>
+      </tr>
+      <%}%>
+  </tbody>
+</table>
+</body>
+
+</html>
