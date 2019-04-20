@@ -23,11 +23,17 @@
           }
           
           td {
-            margin-left:  10px;
-            margin-right: 10px;
+            margin-left:  0px;
+            margin-right: 0px;
           }
 
+          .table {
 
+            margin: 0px;
+            padding: 0px;
+            border-spacing: 0px;
+
+          }
 
           .filterable {
             margin-top: 15px;
@@ -92,7 +98,7 @@
       <th>Price 2</th>  
       <th>Price 3</th>
       <th>Max Amount</th>
-      <th>Cross-rate</th>
+      <th>Profit/Loss</th>
     </tr>
     </thead>
   
@@ -104,7 +110,13 @@
         <td><%=paircycle[element]['p2'][0]%></td>
         <td><%=paircycle[element]['p3'][0]%></td>
         <td><%=paircycle[element]['minAmount']%></td>
-        <td><%=(paircycle[element]['crossrate'])%></td>
+        <td>
+          <%if(paircycle[element]['crossrate'] < 1) {%>
+          <font color="red"><%=((paircycle[element]['crossrate']-1)*100).toPrecision(3)%>%</font>
+          <%} else if (paircycle[element]['crossrate'] >= 1) {%>
+          <font color="green"><%=((paircycle[element]['crossrate']-1)*100).toPrecision(3)%>%</font>
+          <%}%>
+        </td>
       </tr>
     <%}%>
 
