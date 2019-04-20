@@ -2,32 +2,115 @@
     <head>
         <meta http-equiv="refresh" content="5">
         <link href='https://fonts.googleapis.com/css?family=Assistant' rel='stylesheet'>
+        <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
+        <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.0/js/bootstrap.min.js"></script>
+        <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+
         <style>
           body {
               font-family: 'Assistant';font-size: 18px;
           }
+
+          .table>thead>tr>th,.table>tbody>tr>th,.table>tfoot>tr>th,.table>thead>tr>td,.table>tbody>tr>td,.table>tfoot>tr>td {
+          padding: 0px;
+          line-height: 1.428571429;
+          vertical-align: top;
+          border-top: 1px solid #ddd
+          }
+
+          #table-header {
+            font-size: 20px;
+          }
+          
+          td {
+            margin-left:  10px;
+            margin-right: 10px;
+          }
+
+
+
+          .filterable {
+            margin-top: 15px;
+          }
+          .filterable .panel-heading .pull-right {
+              margin-top: -20px;
+          }
+          .filterable .filters input[disabled] {
+              background-color: transparent;
+              border: no
+              cursor: auto;
+              box-shadow: none;
+              padding: 0;
+              height: auto;
+          }
+          .filterable .filters input[disabled]::-webkit-input-placeholder {
+              color: #333;
+          }
+          .filterable .filters input[disabled]::-moz-placeholder {
+              color: #333;
+          }
+          .filterable .filters input[disabled]:-ms-input-placeholder {
+              color: #333;
+          }
         </style>
-      </head>
-<h1>
-  BFX-Triangle-Arbitrage
-</h1>
-<p>
-  Kefe
-</p>
+    </head>
+
+
+<div class="container">
+  <div class="row">
+    <h3>
+      BFX-Triangle-Arbitrage
+    </h3>
+    Main pair: 
+  <select>
+    <option value="BTC">BTC</option>
+    <option value="ETH">ETH</option>
+    <option value="USD">USD</option>
+    <option value="EUR">EUR</option>
+  </select>
+  </div>
+
+  <div class="row">
+  
+  </div>
+
 <body>
- <table> 
+<div class="panel panel-primary filterable">
+    <div class="panel-heading text-center">
+    <h3 class="panel-title">TEST</h3>
+
+    <div class="pull-right">
+        <button class="btn btn-default btn-xs btn-filter"><span class="glyphicon glyphicon-filter"></span> Filter</button>
+    </div>
+    </div>
+ <table class="table"> 
   <tbody>
-      <% for (var element in paircycle) {%>
+    <thead>
+    <tr id="filters">
+      <th>Symbol</th>
+      <th>Price 1</th>
+      <th>Price 2</th>  
+      <th>Price 3</th>
+      <th>Max Amount</th>
+      <th>Cross-rate</th>
+    </tr>
+    </thead>
+  
+    
+    <% for (var element in paircycle) {%>
       <tr>
         <td><b><%=element%></b></td>
         <td><%=paircycle[element]['p1'][0]%></td>
         <td><%=paircycle[element]['p2'][0]%></td>
         <td><%=paircycle[element]['p3'][0]%></td>
         <td><%=paircycle[element]['minAmount']%></td>
+        <td><%=(paircycle[element]['crossrate'])%></td>
       </tr>
-      <%}%>
+    <%}%>
+
   </tbody>
 </table>
+</div>
 </body>
-
+</div>
 </html>

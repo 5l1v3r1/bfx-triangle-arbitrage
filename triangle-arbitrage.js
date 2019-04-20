@@ -13,7 +13,6 @@ const style = require ('ansi-styles')
 const chalk = require ('chalk')
 const TimSort = require('timsort');
 
-
 const API_KEY = 'jZ1hZvn5dDn1rP4PrEDmY7V5ZwJ5xzzqXXgCvict0Py'
 const API_SECRET = 'IJplAkD56ljxUPOs4lJbed0XfmhFaqzIrRsYeV5CvpP'
 
@@ -207,7 +206,11 @@ function obUpdate (symbol,update,bidask) {
             symbolOB[symbol][bidask].push(update[k])
             symOBLen = symbolOB[symbol][bidask].length;
             
-            TimSort.sort(symbolOB[symbol][bidask]) 
+            if (bidask == 'ask') {
+              symbolOB[symbol][bidask].TimSort.sort(function(a, b){return a-b})
+            } else if (bidask == 'bid') {
+              symbolOB[symbol][bidask].TimSort.sort(function(a, b){return b-a}) 
+            }
             console.log(`${symbol} timsort ${bidask} - Index of [ ${chalk.yellow(update[k])} ] is now [${symbolOB[symbol][bidask].indexOf(update[k])}/${symOBLen-1}]`)
             console.log(symbol, bidask,symbolOB[symbol][bidask][0], symbolOB[symbol][bidask][1],symbolOB[symbol][bidask][2])
           }
@@ -218,6 +221,7 @@ function obUpdate (symbol,update,bidask) {
     console.log("-------------")
     
     /*      Final checks      */
+    // add promise to execute arbcalc after update sorting??
 
     if (typeof currentOB[0][0] !== 'undefined') {
               
@@ -268,7 +272,11 @@ async function subscribeOBs () {
 
         console.log(`subscribed to ${pair} on socket ${Math.abs(CRC.str(pair))}`);
         symbolOB[pair] = {bids:[[]], asks:[[]], midprice:{}, lastmidprice:{}}
-        arbTrades[pair] = {p1:{}, p2:{}, p3:{}, minAmount:{}}  
+        
+        if(pair.substring(4) == 'ETH') {
+          arbTrades[pair] = {p1:{}, p2:{}, p3:{}, minAmount:{}, crossrate:{}}  
+        }
+        
         counter++
       }
     }); 
@@ -288,8 +296,8 @@ async function getOBs() {
         let bids = update.bids;
         let asks = update.asks;
 
-        //console.log(symbol, test, test2, test3)
-
+        // add parallel await for symbol triangle. 
+        // call arbCalc here?
         obUpdate(symbol, bids,'bids')
         obUpdate(symbol, asks,'asks')
 
@@ -339,6 +347,7 @@ let arbCalc = async function (p1,p2) {
     arbTrades[p1]['p2'] = pair2bid
     arbTrades[p1]['p3'] = pair3ask
     arbTrades[p1]['minAmount'] = minAmount
+    arbTrades[p1]['crossrate'] = crossrate
     
     if (crossrate >= (1 + profit)) {
         console.log(symbols_string.green, chalk.bold(alt_amount) , '(' , pair3ask[2]*-1 ,'ETH )' ,'->',bidask_string, chalk.magenta('crossrate:'), chalk.bold.yellow(crossrate_string))
@@ -360,3 +369,7 @@ let arbCalc = async function (p1,p2) {
 log("Finished!".green)//Finished symbolOB loop
 
 ws.open()
+
+module.exports.symbolOB = symbolOB;
+module.exports.arbTrades = arbTrades; 
+module.exports.triArray = triArray;
