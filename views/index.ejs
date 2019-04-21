@@ -35,6 +35,12 @@
 
           }
 
+          .panel {
+            
+            outline: 0;
+
+          }
+
           .filterable {
             margin-top: 15px;
           }
@@ -43,7 +49,7 @@
           }
           .filterable .filters input[disabled] {
               background-color: transparent;
-              border: no
+              border: no;
               cursor: auto;
               box-shadow: none;
               padding: 0;
@@ -94,9 +100,9 @@
     <thead>
     <tr id="filters">
       <th>Symbol</th>
-      <th>Price 1</th>
-      <th>Price 2</th>  
-      <th>Price 3</th>
+      <th>Pair 1 (ask)</th>
+      <th>Pair 2 (bid)</th>  
+      <th>Pair 3 (ask)</th>
       <th>Max Amount</th>
       <th>Profit/Loss</th>
     </tr>
@@ -109,7 +115,7 @@
         <td><%=paircycle[element]['p1'][0]%></td>
         <td><%=paircycle[element]['p2'][0]%></td>
         <td><%=paircycle[element]['p3'][0]%></td>
-        <td><%=paircycle[element]['minAmount']%></td>
+        <td><%=(paircycle[element]['minAmount']).toPrecision( 8)%></td>
         <td>
           <%if(paircycle[element]['crossrate'] < 1) {%>
           <font color="red"><%=((paircycle[element]['crossrate']-1)*100).toPrecision(3)%>%</font>
@@ -122,6 +128,7 @@
 
   </tbody>
 </table>
+<div class = "panel-footer">Panel footer</div>
 </div>
 </body>
 </div>
