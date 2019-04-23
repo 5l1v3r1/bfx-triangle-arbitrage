@@ -26,6 +26,8 @@ var balances
 var triArray = []
 var wsArray = []
 var sockets = []
+var mainpair = 'tETHBTC'
+
 
 const bfx = new BFX ({
   apiKey: API_KEY,
@@ -59,7 +61,7 @@ ws.once('auth', async () => {
   console.log('authenticated')
 
   ws.enableSequencing({ audit: true })
-  let subscribe = await subscribeOBs().then(getOBs())
+  await subscribeOBs().then(getOBLoop())
   //let pullOB = await getOBs();
 })
 
@@ -74,63 +76,10 @@ let subscribeTrades = function () {
 */
 
 //let tradingManager
-
-
-function pushToArray(arr, obj) {
-  const index = arr.findIndex((e) => e.id === obj.id);
-
-  if (index === -1) {
-      arr.push(obj);
-  } else {
-      arr[index] = obj;
-  }
-}
  
-function symbolTriplet (symbol) {
+function obUpdate (altcoin,symbol,update,bidask) {
 
-  let sub = symbol.substring(4) 
-  let p1 = symbol,
-      p2 = symbol.replace(sub,"BTC"),
-      p3 = "tETHBTC";
-
-  return triArray.push([p1,p2,p3]);
-  
-}
-
-var compare = function(array1, array2) {
-  // if the other array is a falsy value, return
-  if (!array2)
-    return false;
-
-  // compare leng ths - can save a lot of time
-  if (array1.length != array2.length)
-    return false;
-
-  for (var i = 0; i < array1.length; i++) {
-    // Check if we have nested arrays
-    if (array1[i] instanceof Array && array2[i] instanceof Array) {
-      // recurse into the nested arrays
-      if (!compare(array1[i], array2[i]))
-        return false;
-    } else if (array1[i] != array2[i]) {
-      // Warning - two different object instances will never be equal: {x:20} != {x:20}
-      return false;
-    }
-  }
-  return true;
-}
-
-async function wsTriplet (val) {
-
-  val = bfx.ws(2)
-  console.log("websocket instance created for %s", val)
-  return wsArray.push(val)
-  
-}
-
-function obUpdate (symbol,update,bidask) {
-
-  let currentOB = [symbolOB[symbol][bidask]]  //get bid snapshot from symbolOB to compare with
+  let currentOB = [symbolOB[altcoin][symbol][bidask]]  //get bid snapshot from symbolOB to compare with
   var difference =  update.filter(x => !currentOB.includes(x)); //Find difference in symbolOB and update
   
   try {
@@ -144,11 +93,12 @@ function obUpdate (symbol,update,bidask) {
 
         if (difference[i][1] !== '0') {
           console.log(symbol, "loop", i, difference[i])
-          symbolOB[symbol][bidask][i] = difference[i]
-          //console.log(symbol, i, symbolOB[symbol][bidask][i], "<-",difference[i])
+          symbolOB[altcoin][symbol][bidask][i] = difference[i]
+          //console.log(symbol, i, symbolOB[altcoin][symbol][bidask][i], "<-",difference[i])
         }
       }
       console.log(symbol, "Initial elements added.")
+      console.log(symbolOB[altcoin][symbol][bidask])
       
     }
 
@@ -157,22 +107,23 @@ function obUpdate (symbol,update,bidask) {
       
       console.log(symbol, "currentOB Length:", currentOB[0].length, currentOB[0][currentOB[0].length-1], " update Length:", update.length, update[0])
 
+      
       for (let k in update) {
 
         //Check if currentOB contains an update with same price
         if (currentOB[0][k].includes(update[k][0])) {
 
           console.log(`${symbol} currentOB[0][${k}] includes ${update[k][0]} -> ${currentOB[0][k]} - ${update[k]}`)
-          let index = symbolOB[symbol][bidask].indexOf(currentOB[0][k]) 
+          let index = symbolOB[altcoin][symbol][bidask].indexOf(currentOB[0][k]) 
 
           // Check if update is '0' order, remove from array.
           if (update[k][1] == '0') {
 
-            console.log(`${symbol} removing ${symbolOB[symbol][bidask][index]} [${index}] from orderbook.`)
-            symbolOB[symbol][bidask].splice(index,1) // remove order from symbolOB
-            console.log(`index [${index}] is now ${symbolOB[symbol][bidask][index]}`)
+            console.log(`${symbol} removing ${symbolOB[altcoin][symbol][bidask][index]} [${index}] from orderbook.`)
+            symbolOB[altcoin][symbol][bidask].splice(index,1) // remove order from symbolOB
+            console.log(`${symbol} ${bidask} - index [${index}] is now [ ${symbolOB[altcoin][symbol][bidask][index]} ]`)
             update.splice(k, 1) // remove '0' order from update as well
-            currentOB = [symbolOB[symbol][bidask]] // update currentOB
+            currentOB = [symbolOB[altcoin][symbol][bidask]] // update currentOB
             difference = update.filter(x => !currentOB.includes(x)) // update difference to remove elements already used to update
             
           } 
@@ -181,8 +132,8 @@ function obUpdate (symbol,update,bidask) {
           else if (currentOB[0][k][2] !== update[k][2]) {
             
             console.log(`${symbol} Amount change, ${currentOB[0][k][2]} -> ${update[k][2]}`)
-            symbolOB[symbol][bidask][index] = update[k]
-            currentOB = [symbolOB[symbol][bidask]] // update currentOB
+            symbolOB[altcoin][symbol][bidask][index] = update[k]
+            currentOB = [symbolOB[altcoin][symbol][bidask]] // update currentOB
             update.splice(k, 1) // remove order from update as well
             difference = update.filter(x => !currentOB.includes(x)) // update difference to remove elements already used to update
 
@@ -199,20 +150,34 @@ function obUpdate (symbol,update,bidask) {
 
             let symOBLen;
             let test = currentOB.includes(update[k][0])
-
+            
             console.log(symbol, "currentOB does not include", update[k], test)
             console.log(symbol, "pushing", update[k], "into symOB, then timsort")
+
+            symOBLen = symbolOB[altcoin][symbol][bidask].length;
+            symbolOB[altcoin][symbol][bidask].push(update[k])
             
-            symbolOB[symbol][bidask].push(update[k])
-            symOBLen = symbolOB[symbol][bidask].length;
-            
-            if (bidask == 'ask') {
-              symbolOB[symbol][bidask].TimSort.sort(function(a, b){return a-b})
-            } else if (bidask == 'bid') {
-              symbolOB[symbol][bidask].TimSort.sort(function(a, b){return b-a}) 
+            if (bidask == 'asks') {
+              symbolOB[altcoin][symbol][bidask].sort(function(a, b){return a-b})
+            } else if (bidask == 'bids') {
+              symbolOB[altcoin][symbol][bidask].sort(function(a, b){return b-a})
             }
-            console.log(`${symbol} timsort ${bidask} - Index of [ ${chalk.yellow(update[k])} ] is now [${symbolOB[symbol][bidask].indexOf(update[k])}/${symOBLen-1}]`)
-            console.log(symbol, bidask,symbolOB[symbol][bidask][0], symbolOB[symbol][bidask][1],symbolOB[symbol][bidask][2])
+
+            if (symbolOB[altcoin][symbol][bidask].length > 25) {
+              console.log(symbol, bidask, "bidask length is greater than 25, removing last indexes. checking update's index")
+              console.log(`${symbol} ${bidask} - Index of [ ${chalk.yellow(update[k])} ] is [${symbolOB[altcoin][symbol][bidask].indexOf(update[k])}/${symOBLen-1}]`)
+              symbolOB[altcoin][symbol][bidask] = symbolOB[altcoin][symbol][bidask].slice(0,24)
+              symOBLen = symbolOB[altcoin][symbol][bidask].length;
+              console.log(symbol, "Spliced to", symOBLen)
+              console.log(symbol, bidask,symbolOB[altcoin][symbol][bidask][0], symbolOB[altcoin][symbol][bidask][1],symbolOB[altcoin][symbol][bidask][2])
+            
+            } else {
+
+              symOBLen = symbolOB[altcoin][symbol][bidask].length;
+              console.log(`${symbol} timsort ${bidask} - Index of [ ${chalk.yellow(update[k])} ] is now [${symbolOB[altcoin][symbol][bidask].indexOf(update[k])}/${symOBLen-1}]`)
+              console.log(symbol, bidask,symbolOB[altcoin][symbol][bidask][0], symbolOB[altcoin][symbol][bidask][1],symbolOB[altcoin][symbol][bidask][2])
+            
+            }
           }
         }
       }  
@@ -224,23 +189,13 @@ function obUpdate (symbol,update,bidask) {
     // add promise to execute arbcalc after update sorting??
 
     if (typeof currentOB[0][0] !== 'undefined') {
-              
-      let sub = symbol.substring(4);
-      let p1 = symbol, p2;
-      
-      if (sub == "ETH") {
+
+      if (symbol !== "tETHBTC") {
         
-        p2 = symbol.replace(sub, "BTC")
-        arbCalc(p1,p2)
+        arbCalc(altcoin) 
       
-      } 
-      
-      if (sub == "BTC" && symbol !== "tETHBTC") {
-        
-        p2 = symbol.replace(sub, "ETH")
-        arbCalc(p2,p1) 
-      
-      }              
+      }
+
     }
   } 
 } catch(err) {
@@ -250,16 +205,28 @@ function obUpdate (symbol,update,bidask) {
 
 }
 
-async function subscribeOBs () {
+
+function getOBLoop () {
+
+  tpairs.forEach( async (symbol) => { 
+
+    getOBs(symbol);
+
+  })
+
+}
+
+function subscribeOBs () {
   
   let counter = 0
   tpairs = rv2.ethbtcpairs
   
   return new Promise ( (resolve, reject) => {
   
-    tpairs.forEach ( async (pair) => {
+    tpairs.forEach ( (pair) => {
 
-      let sub = pair.substring(4)
+      let pre = pair.substring(0,4); //prestring e.g "tOMG"
+      let suf = pair.substring(4); // suffix e.g "ETH"
 
       let subscribe = ws.subscribeOrderBook(pair)
 
@@ -271,12 +238,31 @@ async function subscribeOBs () {
       } else {
 
         console.log(`subscribed to ${pair} on socket ${Math.abs(CRC.str(pair))}`);
-        symbolOB[pair] = {bids:[[]], asks:[[]], midprice:{}, lastmidprice:{}}
         
-        if(pair.substring(4) == 'ETH') {
-          arbTrades[pair] = {p1:{}, p2:{}, p3:{}, minAmount:{}, crossrate:{}}  
+        if(suf == 'ETH' && pair !== mainpair) {
+
+          let btc = pre, eth = pre;
+          btc += "BTC";
+          eth += "ETH";
+          // Group symbolOB into altcoin objects (symbolOB["tOMG"]) with eth & btc pairs nested
+          symbolOB[pre] = {};
+          symbolOB[pre][eth] = {bids:[[]], asks:[[]], midprice:"", lastmidprice:""};
+          symbolOB[pre][btc] = {bids:[[]], asks:[[]], midprice:"", lastmidprice:""};
+          symbolOB[pre]['crossrate'] = "";
+          symbolOB[pre]['maxAmount'] = "";
+          
+          arbTrades[pre] = {p1:"", p2:"", minAmount:"", crossrate:""};
+
+        } 
+
+        if (pair == mainpair) {
+          let pre = mainpair.substring(0,4)
+          symbolOB[pre] = {};
+          symbolOB[pre][pair] = {bids:[[]], asks:[[]], midprice:{}, lastmidprice:{}};
+
+
         }
-        
+
         counter++
       }
     }); 
@@ -287,39 +273,34 @@ async function subscribeOBs () {
 }
 
 // 'ob' is a full OrderBook instance, with sorted arrays 'bids' & 'asks'  
-async function getOBs() {
+function getOBs(symbol) {
 
-    tpairs.forEach( async (symbol) => {
+  ws.onOrderBook({ symbol:symbol, precision:"P0"}, (update, cbGID) => { 
+    let alt = symbol.substring(0,4)
+    let bids = update.bids;
+    let asks = update.asks
+    // add parallel await for symbol triangle. 
+    // call arbCalc here?
+    obUpdate(alt,symbol, bids,'bids')
+    obUpdate(alt,symbol, asks,'asks')
+  })
+  console.log(chalk.bold("fetching orderbook for" ,symbol))
 
-      ws.onOrderBook({ symbol:symbol, precision:"P0"}, (update, cbGID) => {
-
-        let bids = update.bids;
-        let asks = update.asks;
-
-        // add parallel await for symbol triangle. 
-        // call arbCalc here?
-        obUpdate(symbol, bids,'bids')
-        obUpdate(symbol, asks,'asks')
-
-      })
-
-    })
-
-  console.log(chalk.bold("DONE"))
-  
 }
 
-let arbCalc = async function (p1,p2) {
+let arbCalc = async function (alt) {
 
-  let p3 = 'tETHBTC'
-  
+  let mpPre = mainpair.substring(0,4)
+  let eth =  alt,btc =  alt;
+  eth += "ETH";
+  btc += "BTC"
   try{
     
-    let pair1ask = symbolOB[p1].asks[0]
-    let pair2bid = symbolOB[p2].bids[0]
-    let pair3ask = symbolOB[p3].asks[0] //Pair constraint
+    let pair1ask = symbolOB[alt][eth].asks[0] //symbolOB.tOMG.tOMGETH.asks[0]
+    let pair2bid = symbolOB[alt][btc].bids[0] //symbolOB.tOMG.tOMGb.bids[0]
+    let pair3ask = symbolOB[mpPre][mainpair].asks[0] //Pair constraint
 
-    //console.log('PAIR1ASK:', pair1ask, symbolOB[p1], 'PAIR2BID:', pair2bid, symbolOB[p2])
+    //console.log('PAIR1ASK:', pair1ask, symbolOB[alt], 'PAIR2BID:', pair2bid, symbolOB[p2])
     
     let profit = 0.0 //percentage of profit required to trigger,  
     let crossrate = ((1/pair1ask[0]) * pair2bid[0]) / pair3ask[0] 
@@ -328,8 +309,8 @@ let arbCalc = async function (p1,p2) {
     let minAmount = Math.min((pair1ask[2])*-1,(pair2bid[2]))
     let minETHAmount = (pair3ask[2]/pair1ask[0])
 
-    let symbols_string = String(p1) + ' > ' + String(p2) + ' > ' + String(p3) + ' | '
-    let alt_amount = String(arbTrades[p1]['minAmount']) + ' ' + (minETHAmount).toFixed(3)
+    let symbols_string = String(alt) + 'ETH > ' + String(alt) + 'BTC > ' + String(mainpair) + ' | '
+    let alt_amount = String(arbTrades[alt]['minAmount']) + ' ' + (minETHAmount).toFixed(3)
     let bidask_string = String(pair1ask[0]) + ' ' + String(pair2bid[0]) + ' ' + chalk.bold(String(pair3ask[0]))
     let crossrate_string = crossrate.toFixed(8).toString()
     
@@ -343,25 +324,23 @@ let arbCalc = async function (p1,p2) {
       minAmount = minAmount
 
     // arbTrade array {}
-    arbTrades[p1]['p1'] = pair1ask 
-    arbTrades[p1]['p2'] = pair2bid
-    arbTrades[p1]['p3'] = pair3ask
-    arbTrades[p1]['minAmount'] = minAmount
-    arbTrades[p1]['crossrate'] = crossrate
+    arbTrades[alt]['p1'] = pair1ask 
+    arbTrades[alt]['p2'] = pair2bid
+    arbTrades[alt]['minAmount'] = minAmount
+    arbTrades[alt]['crossrate'] = crossrate
     
     if (crossrate >= (1 + profit)) {
         console.log(symbols_string.green, chalk.bold(alt_amount) , '(' , pair3ask[2]*-1 ,'ETH )' ,'->',bidask_string, chalk.magenta('crossrate:'), chalk.bold.yellow(crossrate_string))
       }
     else {
         console.log(symbols_string.green, chalk.bold(alt_amount), '(' , pair3ask[2]*-1 ,'ETH )' , '->',bidask_string, chalk.magenta('crossrate:'), chalk.red.bold(crossrate_string))
-        //console.log(symbolOB[p3])
       }  
   }
   catch(err) {
     let errmsg = err.message
     let errarr 
-    console.log(p1,p2)
-    //symbolOB[p1]['asks'] == undefined ? errarr = p1 : errarr = p2
+    console.log(alt)
+    //symbolOB[alt]['asks'] == undefined ? errarr = alt : errarr = p2
     console.log(chalk.red.bold(errarr), errmsg.red, err)
   }
 }
