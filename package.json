@@ -4698,6 +4698,7 @@
       "resolved": "https://registry.npmjs.org/snapdragon-util/-/snapdragon-util-3.0.1.tgz",
       "version": "3.0.1"
     },
+    "socket.io": "^2.2.0",
     "socks": {
       "integrity": "sha512-g6wjBnnMOZpE0ym6e0uHSddz9p3a+WsBaaYQaBaSCJYvrC4IXykQR9MNGjLQf38e9iIIhp3b1/Zk8YZI3KGJ0Q==",
       "requires": {

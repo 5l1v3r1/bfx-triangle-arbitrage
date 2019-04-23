@@ -1,6 +1,6 @@
 <html>
     <head>
-        <meta http-equiv="refresh" content="5">
+        <!--<meta http-equiv="refresh" content="5"> -->
         <link href='https://fonts.googleapis.com/css?family=Assistant' rel='stylesheet'>
         <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
         <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.0/js/bootstrap.min.js"></script>
@@ -83,7 +83,7 @@
   </div>
 
   <div class="row">
-  
+    
   </div>
 
 <body>
@@ -108,14 +108,15 @@
     </tr>
     </thead>
   
-    
     <% for (var element in paircycle) {%>
+      <% let eth = element.concat('ETH')%>
+      <% btc = element.concat('BTC')%>
       <tr>
         <td><b><%=element%></b></td>
-        <td><%=paircycle[element]['p1'][0]%></td>
-        <td><%=paircycle[element]['p2'][0]%></td>
-        <td><%=paircycle[element]['p3'][0]%></td>
-        <td><%=(paircycle[element]['minAmount']).toPrecision( 8)%></td>
+        <td><%=paircycle[element][eth]['asks']%></td>
+        <td><%=paircycle[element][btc]['bids'][0][0]%></td>
+        <td><%=paircycle['tETH']['tETHBTC']['asks'][0][0]%></td>
+        <td></td>
         <td>
           <%if(paircycle[element]['crossrate'] < 1) {%>
           <font color="red"><%=((paircycle[element]['crossrate']-1)*100).toPrecision(3)%>%</font>
