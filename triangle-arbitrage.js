@@ -5,6 +5,7 @@
 const debug = require('debug')('triangle-arbitrage')
 const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const BFX = require('bitfinex-api-node')
+const {OrderBook} = require('bfx-api-node-models')
 const CRC = require('crc-32')
 
 const log = require ('ololog').noLocate
@@ -90,7 +91,6 @@ function obUpdate (altcoin,symbol,update,bidask) {
       
       console.log(symbol, "currentOB Length:", currentOB[0].length, currentOB[0][currentOB[0].length-1], " update Length:", update.length, update[0])
 
-      
       for (let k in update) {
 
         //Check if currentOB contains an update with same price
@@ -229,8 +229,8 @@ function subscribeOBs () {
           eth += "ETH";
           // Group symbolOB into altcoin objects (symbolOB["tOMG"]) with eth & btc pairs nested
           symbolOB[pre] = {};
-          symbolOB[pre]['crossrate'] = "";
-          symbolOB[pre]['maxAmount'] = "";
+          symbolOB[pre]['crossrate'] = -1;
+          symbolOB[pre]['maxAmount'] = 0;
           
           arbTrades[pre] = {p1:"", p2:"", minAmount:"", crossrate:""};
 
@@ -239,6 +239,7 @@ function subscribeOBs () {
         if (pair == mainpair) {
           let pre = mainpair.substring(0,4)
           symbolOB[pre] = {};
+          
         }
 
         counter++
@@ -256,14 +257,32 @@ function subscribeOBs () {
 function getOBs(symbol) {
 
   ws.onOrderBook({ symbol:symbol, precision:"P0"}, (update, cbGID) => { 
+
     let alt = symbol.substring(0,4)
+    let eth = 'ETH', btc = 'BTC'
     let bids = update.bids;
     let asks = update.asks
+
+
+    // check if symbolOB has not initialized OrderBook objects for pairs
+    if (!symbolOB[alt][alt.concat(eth)] || !symbolOB[alt][alt.concat(btc)]) {
+
+      // Instantialize symbolOB symbol OrderBook with update
+      if (typeof symbolOB[alt][symbol] == 'undefined') {
+
+        symbolOB[alt][symbol] = new OrderBook(update)
+
+      }
+      
+    } else if (typeof symbolOB[alt][symbol] !== 'undefined' && typeof symbolOB['tETH']['tETHBTC'] !== 'undefined' ) {
 
     // add parallel await for symbol triangle. 
     // call arbCalc here?
     obUpdate(alt,symbol, bids,'bids')
     obUpdate(alt,symbol, asks,'asks')
+
+    }
+
   })
   console.log(chalk.bold("fetching orderbook for" ,symbol))
 
@@ -275,6 +294,7 @@ let arbCalc = async function (alt) {
   let eth =  alt,btc =  alt;
   eth += "ETH";
   btc += "BTC"
+
   try{
     
     let pair1ask = symbolOB[alt][eth].asks[0] //symbolOB.tOMG.tOMGETH.asks[0]
