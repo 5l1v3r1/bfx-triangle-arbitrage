@@ -85,25 +85,8 @@ function obUpdate (altcoin,symbol,update,bidask) {
   try {
   if (update.length !== 0 ) {
 
-    //currentOB length == 1, means empty array [], so fill with loop
-    if (currentOB[0].length == 1) {
-
-      //Populate symbolOB initially.
-      for (let i = 0; i <= difference.length -1; i++) {
-
-        if (difference[i][1] !== '0') {
-          console.log(symbol, "loop", i, difference[i])
-          symbolOB[altcoin][symbol][bidask][i] = difference[i]
-          //console.log(symbol, i, symbolOB[altcoin][symbol][bidask][i], "<-",difference[i])
-        }
-      }
-      console.log(symbol, "Initial elements added.")
-      console.log(symbolOB[altcoin][symbol][bidask])
-      
-    }
-
     //if not empty, replace/remove existing values with updates
-    else if (currentOB[0].length > 1) {
+    if (currentOB[0].length > 1) {
       
       console.log(symbol, "currentOB Length:", currentOB[0].length, currentOB[0][currentOB[0].length-1], " update Length:", update.length, update[0])
 
@@ -246,8 +229,6 @@ function subscribeOBs () {
           eth += "ETH";
           // Group symbolOB into altcoin objects (symbolOB["tOMG"]) with eth & btc pairs nested
           symbolOB[pre] = {};
-          symbolOB[pre][eth] = {bids:[[]], asks:[[]], midprice:"", lastmidprice:""};
-          symbolOB[pre][btc] = {bids:[[]], asks:[[]], midprice:"", lastmidprice:""};
           symbolOB[pre]['crossrate'] = "";
           symbolOB[pre]['maxAmount'] = "";
           
@@ -258,17 +239,16 @@ function subscribeOBs () {
         if (pair == mainpair) {
           let pre = mainpair.substring(0,4)
           symbolOB[pre] = {};
-          symbolOB[pre][pair] = {bids:[[]], asks:[[]], midprice:{}, lastmidprice:{}};
-
-
         }
 
         counter++
       }
     }); 
+
   console.log(chalk.green("--DONE--"))
   console.log("Subscribed to %d out of %d", counter, tpairs.length)
   return true
+  
   })
 }
 
@@ -279,6 +259,7 @@ function getOBs(symbol) {
     let alt = symbol.substring(0,4)
     let bids = update.bids;
     let asks = update.asks
+
     // add parallel await for symbol triangle. 
     // call arbCalc here?
     obUpdate(alt,symbol, bids,'bids')
@@ -326,6 +307,7 @@ let arbCalc = async function (alt) {
     // arbTrade array {}
     arbTrades[alt]['p1'] = pair1ask 
     arbTrades[alt]['p2'] = pair2bid
+    arbTrades[alt]['p3'] = pair3ask
     arbTrades[alt]['minAmount'] = minAmount
     arbTrades[alt]['crossrate'] = crossrate
     
