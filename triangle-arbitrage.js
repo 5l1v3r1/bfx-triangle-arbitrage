@@ -6,6 +6,8 @@ const debug = require('debug')('triangle-arbitrage')
 const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const BFX = require('bitfinex-api-node')
 const {OrderBook} = require('bfx-api-node-models')
+const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
+
 const CRC = require('crc-32')
 
 const log = require ('ololog').noLocate
@@ -176,7 +178,7 @@ function obUpdate (altcoin,symbol,update,bidask) {
       if (symbol !== "tETHBTC") {
         
         arbCalc(altcoin) 
-      
+        
       }
 
     }
@@ -192,7 +194,7 @@ function obUpdate (altcoin,symbol,update,bidask) {
 function getOBLoop () {
 
   tpairs.forEach( async (symbol) => { 
-
+    console.log(symbol,"ws.orderBooks",ws._orderBooks)
     getOBs(symbol);
 
   })
@@ -211,6 +213,7 @@ function subscribeOBs () {
       let pre = pair.substring(0,4); //prestring e.g "tOMG"
       let suf = pair.substring(4); // suffix e.g "ETH"
 
+      //ws.enableFlag(WSv2.flags.CHECKSUM) // Checksum flag
       let subscribe = ws.subscribeOrderBook(pair)
 
       if(subscribe.err) {
@@ -241,7 +244,6 @@ function subscribeOBs () {
           symbolOB[pre] = {};
           
         }
-
         counter++
       }
     }); 
@@ -255,14 +257,15 @@ function subscribeOBs () {
 
 // 'ob' is a full OrderBook instance, with sorted arrays 'bids' & 'asks'  
 function getOBs(symbol) {
+  
+  let alt = symbol.substring(0,4)
+  let eth = 'ETH', btc = 'BTC'
+  let altID = alt.concat('ID')
 
-  ws.onOrderBook({ symbol:symbol, precision:"P0"}, (update, cbGID) => { 
+  ws.onOrderBook({ symbol:symbol, precision:"P0", cbGID: altID}, (update) => { 
 
-    let alt = symbol.substring(0,4)
-    let eth = 'ETH', btc = 'BTC'
     let bids = update.bids;
     let asks = update.asks
-
 
     // check if symbolOB has not initialized OrderBook objects for pairs
     if (!symbolOB[alt][alt.concat(eth)] || !symbolOB[alt][alt.concat(btc)]) {
@@ -276,11 +279,18 @@ function getOBs(symbol) {
       
     } else if (typeof symbolOB[alt][symbol] !== 'undefined' && typeof symbolOB['tETH']['tETHBTC'] !== 'undefined' ) {
 
-    // add parallel await for symbol triangle. 
-    // call arbCalc here?
-    obUpdate(alt,symbol, bids,'bids')
-    obUpdate(alt,symbol, asks,'asks')
-
+    // Promise here for both updates
+    // or make obUpdate return promise? -> .then(arbcalc())
+    let obUpdatePromise = function () {
+      return new Promise((resolve, reject) => { 
+        obUpdate(alt,symbol, bids,'bids')
+        obUpdate(alt,symbol, asks,'asks')
+        return true
+      })
+    }
+    
+    obUpdatePromise()
+    // .then( arbCalc() )
     }
 
   })
