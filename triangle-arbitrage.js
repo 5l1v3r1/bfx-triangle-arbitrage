@@ -236,6 +236,7 @@ function subscribeOBs () {
           symbolOB[pre] = {};
           symbolOB[pre]['crossrate'] = -1;
           symbolOB[pre]['maxAmount'] = 0;
+          symbolOB[pre]['lastCs'] = -1;
           
           arbTrades[pre] = {p1:"", p2:"", minAmount:"", crossrate:""};
 
@@ -298,37 +299,42 @@ function getOBs(symbol) {
 
         //obUpdate(alt,symbol, bids,'bids')
         //obUpdate(alt,symbol, asks,'asks')
+        try {
+          if(bids){
 
-        if(bids){
-
-          for (let i = 0; i < update.bids.length; i++) {
-            let obj = bids[i]
-            let currentEntry = Object.keys(obj).map((k) => obj[k])
-            symbolOB[alt][symbol].updateWith(currentEntry)
-          }
-
-        }
-
-        if(asks) {
-          for (let i = 0; i < update.asks.length; i++) {
-            let obj = asks[i]
-            let currentEntry = Object.keys(obj).map((k) => obj[k])
-            symbolOB[alt][symbol].updateWith(currentEntry)
+            for (let i = 0; i < update.bids.length; i++) {
+              let obj = bids[i]
+              let currentEntry = Object.keys(obj).map((k) => obj[k])
+              symbolOB[alt][symbol].updateWith(currentEntry)
+            }
 
           }
+
+          if(asks) {
+            for (let i = 0; i < update.asks.length; i++) {
+              let obj = asks[i]
+              let currentEntry = Object.keys(obj).map((k) => obj[k])
+              symbolOB[alt][symbol].updateWith(currentEntry)
+
+            }
+          }
+        } catch(err) {
+
+          return reject(err)
+
         }
         
-        return true
       })
     }
 
     //change to onOrderBookChecksum() and add promise
     function checkcs() {
-          
-      ws.on('cs', (cs) =>{
-    
+      
+    ws.on('cs', (cs) =>{
+
         //console.log(symbol, "chanId:",cbGID.chanId, cs[0])
-        
+      if (cs !== symbolOB[alt][symbol]['lastCs']) {
+
         if (cbGID.chanId === cs[0]) {
           
           if (symbolOB[alt][symbol].bids.length == 25 && symbolOB[alt][symbol].asks.length == 25) {   
@@ -344,14 +350,18 @@ function getOBs(symbol) {
             } else {
               
               console.log(symbol, "checksum success".green,cs[2],symbolOBcs)
+              symbolOB[alt][symbol]['lastCs'] = cs
               return true
             }  
           
           }
-        
         }
+      } else {
 
-      })
+        return true
+
+      }
+    })
 
       
     }
