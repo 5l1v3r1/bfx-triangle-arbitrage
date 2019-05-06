@@ -53,6 +53,13 @@ ws.onMessage('', (msg) => {
   //console.log(msg)
 })
 
+//sort checksum by chanId
+ws.on('cs', (cs) => {
+
+    
+
+})
+
 ws.on('open', () => {
   console.log('open')
   ws.auth() 
@@ -63,7 +70,7 @@ ws.once('auth', async () => {
   console.log(balances)
   console.log('authenticated')
 
-  ws.enableSequencing({ audit: true })
+  //ws.enableSequencing({ audit: true })
   await subscribeOBs().then(getOBLoop())
   //let pullOB = await getOBs();
 })
@@ -79,7 +86,7 @@ let subscribeTrades = function () {
 */
 
 //let tradingManager
- 
+
 function obUpdate (altcoin,symbol,update,bidask) {
 
   let currentOB = [symbolOB[altcoin][symbol][bidask]]  //get bid snapshot from symbolOB to compare with
@@ -194,7 +201,7 @@ function obUpdate (altcoin,symbol,update,bidask) {
 function getOBLoop () {
 
   tpairs.forEach( async (symbol) => { 
-    console.log(symbol,"ws.orderBooks",ws._orderBooks)
+
     getOBs(symbol);
 
   })
@@ -213,15 +220,10 @@ function subscribeOBs () {
       let pre = pair.substring(0,4); //prestring e.g "tOMG"
       let suf = pair.substring(4); // suffix e.g "ETH"
 
-      //ws.enableFlag(WSv2.flags.CHECKSUM) // Checksum flag
-      let subscribe = ws.subscribeOrderBook(pair)
+      ws.send({ event: 'conf', flags: 131072 }) // Checksum flag
+      ws.subscribeOrderBook(pair) 
 
-      if(subscribe.err) {
-
-        console.log(err);
-        return reject(err)
-
-      } else {
+      try {
 
         console.log(`subscribed to ${pair} on socket ${Math.abs(CRC.str(pair))}`);
         
@@ -246,6 +248,12 @@ function subscribeOBs () {
         }
         counter++
       }
+      catch(err) {
+
+        console.log(err);
+        return reject(err)
+
+      }
     }); 
 
   console.log(chalk.green("--DONE--"))
@@ -261,11 +269,14 @@ function getOBs(symbol) {
   let alt = symbol.substring(0,4)
   let eth = 'ETH', btc = 'BTC'
   let altID = alt.concat('ID')
+  let PRECISION = "P0"
 
-  ws.onOrderBook({ symbol:symbol, precision:"P0", cbGID: altID}, (update) => { 
+  ws.onOrderBook({ symbol:symbol, precision:PRECISION, cbGID: altID}, (update,cbGID) => { 
 
     let bids = update.bids;
     let asks = update.asks
+  
+    //console.log(symbol, cbGID.chanId)
 
     // check if symbolOB has not initialized OrderBook objects for pairs
     if (!symbolOB[alt][alt.concat(eth)] || !symbolOB[alt][alt.concat(btc)]) {
@@ -281,21 +292,78 @@ function getOBs(symbol) {
 
     // Promise here for both updates
     // or make obUpdate return promise? -> .then(arbcalc())
-    let obUpdatePromise = function () {
+    function obUpdatePromise() {
+      
       return new Promise((resolve, reject) => { 
-        obUpdate(alt,symbol, bids,'bids')
-        obUpdate(alt,symbol, asks,'asks')
+
+        //obUpdate(alt,symbol, bids,'bids')
+        //obUpdate(alt,symbol, asks,'asks')
+
+        if(bids){
+
+          for (let i = 0; i < update.bids.length; i++) {
+            let obj = bids[i]
+            let currentEntry = Object.keys(obj).map((k) => obj[k])
+            symbolOB[alt][symbol].updateWith(currentEntry)
+          }
+
+        }
+
+        if(asks) {
+          for (let i = 0; i < update.asks.length; i++) {
+            let obj = asks[i]
+            let currentEntry = Object.keys(obj).map((k) => obj[k])
+            symbolOB[alt][symbol].updateWith(currentEntry)
+
+          }
+        }
+        
         return true
       })
     }
+
+    //change to onOrderBookChecksum() and add promise
+    function checkcs() {
+          
+      ws.on('cs', (cs) =>{
     
-    obUpdatePromise()
+        //console.log(symbol, "chanId:",cbGID.chanId, cs[0])
+        
+        if (cbGID.chanId === cs[0]) {
+          
+          if (symbolOB[alt][symbol].bids.length == 25 && symbolOB[alt][symbol].asks.length == 25) {   
+            
+            //make checksum from current OB
+            let symbolOBcs = symbolOB[alt][symbol].checksum() //returns checksum from ob
+            
+            if(cs[2] !== symbolOBcs) {
+
+              console.log(symbol, "checksum failed", cs[2],symbolOBcs)
+              return false
+            
+            } else {
+              
+              console.log(symbol, "checksum success".green,cs[2],symbolOBcs)
+              return true
+            }  
+          
+          }
+        
+        }
+
+      })
+
+      
+    }
+
+    obUpdatePromise().then(checkcs()).then(arbCalc(alt))
     // .then( arbCalc() )
     }
 
   })
+  
   console.log(chalk.bold("fetching orderbook for" ,symbol))
-
+  
 }
 
 let arbCalc = async function (alt) {
