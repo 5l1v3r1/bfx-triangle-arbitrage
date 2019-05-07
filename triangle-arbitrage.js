@@ -53,13 +53,6 @@ ws.onMessage('', (msg) => {
   //console.log(msg)
 })
 
-//sort checksum by chanId
-ws.on('cs', (cs) => {
-
-    
-
-})
-
 ws.on('open', () => {
   console.log('open')
   ws.auth() 
@@ -264,6 +257,43 @@ function subscribeOBs () {
   })
 }
 
+function reSubscribe(symbol, alt) {
+
+  return new Promise((resolve,reject) => {
+
+  symbolOB[alt][symbol]['bids'] = []
+  symbolOB[alt][symbol]['asks'] = []
+
+  console.log(symbolOB[alt][symbol])          
+  
+  let unsubbed = new Promise ((resolve, reject) => {
+
+    ws.unsubscribeOrderBook(symbol) ? resolve(console.log(`Unsubscribed from ${symbol}`)) : reject()
+    
+  })
+
+  if (unsubbed) {
+
+    //resubscribe to OrderBook
+    let resubbed = ws.subscribeOrderBook(symbol)
+    
+    if(resubbed){
+      
+      resolve(console.log("Resubscribed to", symbol))
+      
+    } else {
+      console.log("failed to re-subscribe to", symbol)
+      reject()
+    }
+  
+  } else if (!unsubbed) {
+    console.log("failed to unsubscribe from", symbol)
+    reject()
+  }
+})
+
+}
+
 // 'ob' is a full OrderBook instance, with sorted arrays 'bids' & 'asks'  
 function getOBs(symbol) {
   
@@ -286,6 +316,7 @@ function getOBs(symbol) {
       if (typeof symbolOB[alt][symbol] == 'undefined') {
 
         symbolOB[alt][symbol] = new OrderBook(update)
+        symbolOB[alt][symbol]["chanId"] = cbGID.chanId
 
       }
       
@@ -323,17 +354,18 @@ function getOBs(symbol) {
           return reject(err)
 
         }
-        
+       
+        //console.log(ws._orderBooks[symbol])
       })
     }
 
     //change to onOrderBookChecksum() and add promise
     function checkcs() {
-      
+    
     ws.on('cs', (cs) =>{
 
-        //console.log(symbol, "chanId:",cbGID.chanId, cs[0])
-      if (cs !== symbolOB[alt][symbol]['lastCs']) {
+      //console.log(symbol, "chanId:",cbGID.chanId, cs[0])
+      if (cs !== symbolOB[alt][symbol]['lastCs'] ) {
 
         if (cbGID.chanId === cs[0]) {
           
@@ -345,12 +377,15 @@ function getOBs(symbol) {
             if(cs[2] !== symbolOBcs) {
 
               console.log(symbol, "checksum failed", cs[2],symbolOBcs)
-              return false
-            
+              
+              //unsub and resub to get snapshot? Clear OrderBook
+              reSubscribe(symbol, alt)
+
             } else {
               
               console.log(symbol, "checksum success".green,cs[2],symbolOBcs)
               symbolOB[alt][symbol]['lastCs'] = cs
+              ws._orderBooks[symbol] = symbolOB[alt][symbol]
               return true
             }  
           
@@ -363,7 +398,6 @@ function getOBs(symbol) {
       }
     })
 
-      
     }
 
     obUpdatePromise().then(checkcs()).then(arbCalc(alt))
