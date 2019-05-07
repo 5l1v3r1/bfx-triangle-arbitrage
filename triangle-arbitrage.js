@@ -80,112 +80,83 @@ let subscribeTrades = function () {
 
 //let tradingManager
 
-function obUpdate (altcoin,symbol,update,bidask) {
-
-  let currentOB = [symbolOB[altcoin][symbol][bidask]]  //get bid snapshot from symbolOB to compare with
-  var difference =  update.filter(x => !currentOB.includes(x)); //Find difference in symbolOB and update
-  
-  try {
-  if (update.length !== 0 ) {
-
-    //if not empty, replace/remove existing values with updates
-    if (currentOB[0].length > 1) {
+function obUpdatePromise() {
       
-      console.log(symbol, "currentOB Length:", currentOB[0].length, currentOB[0][currentOB[0].length-1], " update Length:", update.length, update[0])
+  return new Promise((resolve, reject) => { 
 
-      for (let k in update) {
+    //obUpdate(alt,symbol, bids,'bids')
+    //obUpdate(alt,symbol, asks,'asks')
+    try {
+      if(bids){
 
-        //Check if currentOB contains an update with same price
-        if (currentOB[0][k].includes(update[k][0])) {
-
-          console.log(`${symbol} currentOB[0][${k}] includes ${update[k][0]} -> ${currentOB[0][k]} - ${update[k]}`)
-          let index = symbolOB[altcoin][symbol][bidask].indexOf(currentOB[0][k]) 
-
-          // Check if update is '0' order, remove from array.
-          if (update[k][1] == '0') {
-
-            console.log(`${symbol} removing ${symbolOB[altcoin][symbol][bidask][index]} [${index}] from orderbook.`)
-            symbolOB[altcoin][symbol][bidask].splice(index,1) // remove order from symbolOB
-            console.log(`${symbol} ${bidask} - index [${index}] is now [ ${symbolOB[altcoin][symbol][bidask][index]} ]`)
-            update.splice(k, 1) // remove '0' order from update as well
-            currentOB = [symbolOB[altcoin][symbol][bidask]] // update currentOB
-            difference = update.filter(x => !currentOB.includes(x)) // update difference to remove elements already used to update
-            
-          } 
-
-          // else, check if amounts are different and replace with new
-          else if (currentOB[0][k][2] !== update[k][2]) {
-            
-            console.log(`${symbol} Amount change, ${currentOB[0][k][2]} -> ${update[k][2]}`)
-            symbolOB[altcoin][symbol][bidask][index] = update[k]
-            currentOB = [symbolOB[altcoin][symbol][bidask]] // update currentOB
-            update.splice(k, 1) // remove order from update as well
-            difference = update.filter(x => !currentOB.includes(x)) // update difference to remove elements already used to update
-
-          }
-
-        } else {
-          
-          if (update[k][1] == '0') {
-            console.log(symbol,"Useless '0' order. Ignoring")
-            update.splice(k,1) //remove unecessary '0' order
-            difference = update.filter(x => !currentOB.includes(x)) // update difference to remove elements already used to update
-
-          } else {
-
-            let symOBLen;
-            let test = currentOB.includes(update[k][0])
-            
-            console.log(symbol, "currentOB does not include", update[k], test)
-            console.log(symbol, "pushing", update[k], "into symOB, then timsort")
-
-            symOBLen = symbolOB[altcoin][symbol][bidask].length;
-            symbolOB[altcoin][symbol][bidask].push(update[k])
-            
-            if (bidask == 'asks') {
-              symbolOB[altcoin][symbol][bidask].sort(function(a, b){return a-b})
-            } else if (bidask == 'bids') {
-              symbolOB[altcoin][symbol][bidask].sort(function(a, b){return b-a})
-            }
-
-            if (symbolOB[altcoin][symbol][bidask].length > 25) {
-              console.log(symbol, bidask, "bidask length is greater than 25, removing last indexes. checking update's index")
-              console.log(`${symbol} ${bidask} - Index of [ ${chalk.yellow(update[k])} ] is [${symbolOB[altcoin][symbol][bidask].indexOf(update[k])}/${symOBLen-1}]`)
-              symbolOB[altcoin][symbol][bidask] = symbolOB[altcoin][symbol][bidask].slice(0,24)
-              symOBLen = symbolOB[altcoin][symbol][bidask].length;
-              console.log(symbol, "Spliced to", symOBLen)
-              console.log(symbol, bidask,symbolOB[altcoin][symbol][bidask][0], symbolOB[altcoin][symbol][bidask][1],symbolOB[altcoin][symbol][bidask][2])
-            
-            } else {
-
-              symOBLen = symbolOB[altcoin][symbol][bidask].length;
-              console.log(`${symbol} timsort ${bidask} - Index of [ ${chalk.yellow(update[k])} ] is now [${symbolOB[altcoin][symbol][bidask].indexOf(update[k])}/${symOBLen-1}]`)
-              console.log(symbol, bidask,symbolOB[altcoin][symbol][bidask][0], symbolOB[altcoin][symbol][bidask][1],symbolOB[altcoin][symbol][bidask][2])
-            
-            }
-          }
+        for (let i = 0; i < update.bids.length; i++) {
+          let obj = bids[i]
+          let currentEntry = Object.keys(obj).map((k) => obj[k])
+          symbolOB[alt][symbol].updateWith(currentEntry)
         }
-      }  
-    }
 
-    console.log("-------------")
-    
-    /*      Final checks      */
-    // add promise to execute arbcalc after update sorting??
-
-    if (typeof currentOB[0][0] !== 'undefined') {
-
-      if (symbol !== "tETHBTC") {
-        
-        arbCalc(altcoin) 
-        
       }
 
+      if(asks) {
+        for (let i = 0; i < update.asks.length; i++) {
+          let obj = asks[i]
+          let currentEntry = Object.keys(obj).map((k) => obj[k])
+          symbolOB[alt][symbol].updateWith(currentEntry)
+
+        }
+      }
+    } catch(err) {
+
+      return reject(err)
+
     }
-  } 
-} catch(err) {
-  console.log(symbol, err)
+   
+    //console.log(ws._orderBooks[symbol])
+  })
 }
+
+//change to onOrderBookChecksum() and add promise
+function checkcs() {
+  
+return new Promise ((resolve, reject) => {
+  ws.on('cs', (cs) =>{
+
+    //console.log(symbol, "chanId:",cbGID.chanId, cs[0])
+    if (cs !== symbolOB[alt][symbol]['lastCs'] ) {
+
+      if (cbGID.chanId === cs[0]) {
+
+        if (symbolOB[alt][symbol].bids.length == 25 && symbolOB[alt][symbol].asks.length == 25) {   
+
+          //make checksum from current OB
+          let symbolOBcs = symbolOB[alt][symbol].checksum() //returns checksum from ob
+
+          if(cs[2] !== symbolOBcs) {
+
+            console.log(symbol, "checksum failed", cs[2],symbolOBcs)
+            
+            //unsub and resub to get snapshot? Clear OrderBook
+            reSubscribe(symbol, alt)
+            reject()
+          } else {
+
+            console.log(symbol, "checksum success".green,cs[2],symbolOBcs)
+            symbolOB[alt][symbol]['lastCs'] = cs
+            ws._orderBooks[symbol] = symbolOB[alt][symbol]
+            resolve()
+          }  
+        
+        }
+      }
+    } 
+
+  })
+
+  })
+}
+
+
+function obUpdate (altcoin,symbol,update,bidask) {
 
 
 }
@@ -268,7 +239,9 @@ function reSubscribe(symbol, alt) {
   
   let unsubbed = new Promise ((resolve, reject) => {
 
-    ws.unsubscribeOrderBook(symbol) ? resolve(console.log(`Unsubscribed from ${symbol}`)) : reject()
+    ws.unsubscribeOrderBook(symbol) 
+      ? resolve(console.log(`Unsubscribed from ${symbol}`)) 
+      : reject(console.log(`Failed to unsubscribe from ${symbol}`))
     
   })
 
@@ -277,18 +250,12 @@ function reSubscribe(symbol, alt) {
     //resubscribe to OrderBook
     let resubbed = ws.subscribeOrderBook(symbol)
     
-    if(resubbed){
-      
-      resolve(console.log("Resubscribed to", symbol))
-      
-    } else {
-      console.log("failed to re-subscribe to", symbol)
-      reject()
-    }
+    resubbed ? resolve(console.log("Resubscribed to", symbol)) 
+             : reject(console.log("failed to re-subscribe to", symbol))
+    
   
   } else if (!unsubbed) {
-    console.log("failed to unsubscribe from", symbol)
-    reject()
+    reject(console.log("failed to unsubscribe from", symbol))
   }
 })
 
@@ -324,82 +291,7 @@ function getOBs(symbol) {
 
     // Promise here for both updates
     // or make obUpdate return promise? -> .then(arbcalc())
-    function obUpdatePromise() {
-      
-      return new Promise((resolve, reject) => { 
-
-        //obUpdate(alt,symbol, bids,'bids')
-        //obUpdate(alt,symbol, asks,'asks')
-        try {
-          if(bids){
-
-            for (let i = 0; i < update.bids.length; i++) {
-              let obj = bids[i]
-              let currentEntry = Object.keys(obj).map((k) => obj[k])
-              symbolOB[alt][symbol].updateWith(currentEntry)
-            }
-
-          }
-
-          if(asks) {
-            for (let i = 0; i < update.asks.length; i++) {
-              let obj = asks[i]
-              let currentEntry = Object.keys(obj).map((k) => obj[k])
-              symbolOB[alt][symbol].updateWith(currentEntry)
-
-            }
-          }
-        } catch(err) {
-
-          return reject(err)
-
-        }
-       
-        //console.log(ws._orderBooks[symbol])
-      })
-    }
-
-    //change to onOrderBookChecksum() and add promise
-    function checkcs() {
     
-    ws.on('cs', (cs) =>{
-
-      //console.log(symbol, "chanId:",cbGID.chanId, cs[0])
-      if (cs !== symbolOB[alt][symbol]['lastCs'] ) {
-
-        if (cbGID.chanId === cs[0]) {
-          
-          if (symbolOB[alt][symbol].bids.length == 25 && symbolOB[alt][symbol].asks.length == 25) {   
-            
-            //make checksum from current OB
-            let symbolOBcs = symbolOB[alt][symbol].checksum() //returns checksum from ob
-            
-            if(cs[2] !== symbolOBcs) {
-
-              console.log(symbol, "checksum failed", cs[2],symbolOBcs)
-              
-              //unsub and resub to get snapshot? Clear OrderBook
-              reSubscribe(symbol, alt)
-
-            } else {
-              
-              console.log(symbol, "checksum success".green,cs[2],symbolOBcs)
-              symbolOB[alt][symbol]['lastCs'] = cs
-              ws._orderBooks[symbol] = symbolOB[alt][symbol]
-              return true
-            }  
-          
-          }
-        }
-      } else {
-
-        return true
-
-      }
-    })
-
-    }
-
     obUpdatePromise().then(checkcs()).then(arbCalc(alt))
     // .then( arbCalc() )
     }
