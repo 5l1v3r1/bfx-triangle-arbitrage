@@ -80,7 +80,7 @@ let subscribeTrades = function () {
 
 //let tradingManager
 
-function obUpdatePromise() {
+function obUpdatePromise(symbol, alt) {
       
   return new Promise((resolve, reject) => { 
 
@@ -116,7 +116,7 @@ function obUpdatePromise() {
 }
 
 //change to onOrderBookChecksum() and add promise
-function checkcs() {
+function checkcs(symbol,alt, cbGID) {
   
 return new Promise ((resolve, reject) => {
   ws.on('cs', (cs) =>{
@@ -280,7 +280,7 @@ function getOBs(symbol) {
     if (!symbolOB[alt][alt.concat(eth)] || !symbolOB[alt][alt.concat(btc)]) {
 
       // Instantialize symbolOB symbol OrderBook with update
-      if (typeof symbolOB[alt][symbol] == 'undefined') {
+      if (typeof symbolOB[alt][symbol] == 'undefined' || (symbolOB[alt][symbol]['bids'].length == 0 && symbolOB[alt][symbol]['asks'].length == 0)) {
 
         symbolOB[alt][symbol] = new OrderBook(update)
         symbolOB[alt][symbol]["chanId"] = cbGID.chanId
@@ -289,11 +289,14 @@ function getOBs(symbol) {
       
     } else if (typeof symbolOB[alt][symbol] !== 'undefined' && typeof symbolOB['tETH']['tETHBTC'] !== 'undefined' ) {
 
-    // Promise here for both updates
-    // or make obUpdate return promise? -> .then(arbcalc())
-    
-    obUpdatePromise().then(checkcs()).then(arbCalc(alt))
-    // .then( arbCalc() )
+    obUpdatePromise(symbol, alt).then(checkcs(symbol, alt, cbGID))
+    .then(arbCalc(alt)) 
+    .catch(() => {
+
+      getOBs(symbol)
+
+    }) // if no snapshot
+
     }
 
   })
