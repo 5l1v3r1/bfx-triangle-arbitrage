@@ -114,50 +114,7 @@ function obUpdatePromise(symbol, alt, update) {
 }
 
 //change to onOrderBookChecksum() and add promise
-function checkcs(symbol,alt, cbGID) {
-  
-return new Promise ((resolve, reject) => {
-  ws.on('cs', (cs) =>{
 
-    //console.log(symbol, "chanId:",cbGID.chanId, cs[0])
-    if (cs !== symbolOB[alt][symbol]['lastCs'] ) {
-
-      if (cbGID.chanId === cs[0]) {
-
-        if (symbolOB[alt][symbol].bids.length == 25 && symbolOB[alt][symbol].asks.length == 25) {   
-
-          //make checksum from current OB
-          let symbolOBcs = symbolOB[alt][symbol].checksum() //returns checksum from ob
-
-          if(cs[2] !== symbolOBcs) {
-
-            console.log(symbol, "checksum failed", cs[2],symbolOBcs)
-            
-            //unsub and resub to get snapshot? Clear OrderBook
-            reSubscribe(symbol, alt)
-            reject()
-          } else {
-
-            console.log(symbol, "checksum success".green,cs[2],symbolOBcs)
-            symbolOB[alt][symbol]['lastCs'] = cs
-            //ws._orderBooks[symbol] = symbolOB[alt][symbol]
-            resolve()
-          }  
-        
-        }
-      }
-    } 
-
-  })
-
-  })
-}
-
-
-function obUpdate (altcoin,symbol,update,bidask) {
-
-
-}
 
 
 function getOBLoop () {
@@ -232,8 +189,6 @@ function reSubscribe(symbol, alt) {
 
   symbolOB[alt][symbol]['bids'] = []
   symbolOB[alt][symbol]['asks'] = []
-
-  console.log(symbolOB[alt][symbol])          
   
   let unsubbed = new Promise ((resolve, reject) => {
 
@@ -268,7 +223,7 @@ function getOBs(symbol) {
   let PRECISION = "P0"
 
   ws.onOrderBook({ symbol:symbol, precision:PRECISION, cbGID: altID}, (update,cbGID) => { 
-    console.log(symbol, "_orderBooks[]",ws._orderBooks[symbol])
+    //console.log(symbol, "_orderBooks[]",ws._orderBooks[symbol])
     // check if symbolOB has not initialized OrderBook objects for pairs
     if (!symbolOB[alt][alt.concat(eth)] || !symbolOB[alt][alt.concat(btc)]) {
 
