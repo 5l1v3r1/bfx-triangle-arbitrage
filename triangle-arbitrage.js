@@ -40,7 +40,10 @@ const bfx = new BFX ({
 })
 
 const rest = bfx.rest(2) //RESTv2
-const ws = bfx.ws(2) //WSv2
+const ws = bfx.ws(2,{
+  manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
+  transform: true // auto-transform array OBs to OrderBook objects
+}) //WSv2
 
 // VSC git push through terminal test
 
@@ -80,21 +83,20 @@ let subscribeTrades = function () {
 
 //let tradingManager
 
-function obUpdatePromise(symbol, alt) {
-      
+function obUpdatePromise(symbol, alt, update) {
+  let bids = update.bids;
+  let asks = update.asks;
+
   return new Promise((resolve, reject) => { 
 
-    //obUpdate(alt,symbol, bids,'bids')
-    //obUpdate(alt,symbol, asks,'asks')
     try {
+      
       if(bids){
-
         for (let i = 0; i < update.bids.length; i++) {
           let obj = bids[i]
           let currentEntry = Object.keys(obj).map((k) => obj[k])
           symbolOB[alt][symbol].updateWith(currentEntry)
         }
-
       }
 
       if(asks) {
@@ -102,16 +104,12 @@ function obUpdatePromise(symbol, alt) {
           let obj = asks[i]
           let currentEntry = Object.keys(obj).map((k) => obj[k])
           symbolOB[alt][symbol].updateWith(currentEntry)
-
         }
       }
     } catch(err) {
-
       return reject(err)
+    }   
 
-    }
-   
-    //console.log(ws._orderBooks[symbol])
   })
 }
 
@@ -142,7 +140,7 @@ return new Promise ((resolve, reject) => {
 
             console.log(symbol, "checksum success".green,cs[2],symbolOBcs)
             symbolOB[alt][symbol]['lastCs'] = cs
-            ws._orderBooks[symbol] = symbolOB[alt][symbol]
+            //ws._orderBooks[symbol] = symbolOB[alt][symbol]
             resolve()
           }  
         
@@ -270,12 +268,7 @@ function getOBs(symbol) {
   let PRECISION = "P0"
 
   ws.onOrderBook({ symbol:symbol, precision:PRECISION, cbGID: altID}, (update,cbGID) => { 
-
-    let bids = update.bids;
-    let asks = update.asks
-  
-    //console.log(symbol, cbGID.chanId)
-
+    console.log(symbol, "_orderBooks[]",ws._orderBooks[symbol])
     // check if symbolOB has not initialized OrderBook objects for pairs
     if (!symbolOB[alt][alt.concat(eth)] || !symbolOB[alt][alt.concat(btc)]) {
 
@@ -289,12 +282,11 @@ function getOBs(symbol) {
       
     } else if (typeof symbolOB[alt][symbol] !== 'undefined' && typeof symbolOB['tETH']['tETHBTC'] !== 'undefined' ) {
 
-    obUpdatePromise(symbol, alt).then(checkcs(symbol, alt, cbGID))
+    obUpdatePromise(symbol, alt, update)
+    .then(checkcs(symbol, alt, cbGID))
     .then(arbCalc(alt)) 
     .catch(() => {
-
       getOBs(symbol)
-
     }) // if no snapshot
 
     }
