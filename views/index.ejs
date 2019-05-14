@@ -108,20 +108,20 @@
     </tr>
     </thead>
   
-    <% for (var element in paircycle) {%>
+    <% for (var element in arbTrades) {%>
       <% let eth = element.concat('ETH')%>
       <% btc = element.concat('BTC')%>
       <tr>
         <td><b><%=element%></b></td>
-        <td><%=paircycle[element][eth]['asks']%></td>
-        <td><%=paircycle[element][btc]['bids'][0][0]%></td>
-        <td><%=paircycle['tETH']['tETHBTC']['asks'][0][0]%></td>
+        <td><%=arbTrades[element]["p1"][0]%></td>
+        <td><%=arbTrades[element]["p2"][0]%></td>
+        <td><%=arbTrades[element]["p3"]%></td>
         <td></td>
         <td>
-          <%if(paircycle[element]['crossrate'] < 1) {%>
-          <font color="red"><%=((paircycle[element]['crossrate']-1)*100).toPrecision(3)%>%</font>
-          <%} else if (paircycle[element]['crossrate'] >= 1) {%>
-          <font color="green"><%=((paircycle[element]['crossrate']-1)*100).toPrecision(3)%>%</font>
+          <%if(arbTrades[element]['crossrate'] < 1) {%>
+          <font color="red"><%=((arbTrades[element]['crossrate']-1)*100).toPrecision(3)%>%</font>
+          <%} else if (arbTrades[element]['crossrate'] >= 1) {%>
+          <font color="green"><%=((arbTrades[element]['crossrate']-1)*100).toPrecision(3)%>%</font>
           <%}%>
         </td>
       </tr>

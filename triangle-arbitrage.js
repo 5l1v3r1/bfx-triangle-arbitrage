@@ -106,16 +106,17 @@ function obUpdatePromise(symbol, alt, update) {
           symbolOB[alt][symbol].updateWith(currentEntry)
         }
       }
+
     } catch(err) {
       return reject(err)
-    }   
+    } 
+    
+    return resolve()
 
   })
 }
 
 //change to onOrderBookChecksum() and add promise
-
-
 
 function getOBLoop () {
 
@@ -221,49 +222,59 @@ function getOBs(symbol) {
   let eth = 'ETH', btc = 'BTC'
   let altID = alt.concat('ID')
   let PRECISION = "P0"
-
-  ws.onOrderBook({ symbol:symbol, precision:PRECISION, cbGID: altID}, (update,cbGID) => { 
-    //console.log(symbol, "_orderBooks[]",ws._orderBooks[symbol])
-    // check if symbolOB has not initialized OrderBook objects for pairs
-    if (!symbolOB[alt][alt.concat(eth)] || !symbolOB[alt][alt.concat(btc)]) {
-
-      // Instantialize symbolOB symbol OrderBook with update
-      if (typeof symbolOB[alt][symbol] == 'undefined' || (symbolOB[alt][symbol]['bids'].length == 0 && symbolOB[alt][symbol]['asks'].length == 0)) {
-
-        symbolOB[alt][symbol] = new OrderBook(update)
-        symbolOB[alt][symbol]["chanId"] = cbGID.chanId
-
-      }
+  
+  let arbCalcReady = function() {
+    if(symbolOB[alt][alt.concat(eth)] && symbolOB[alt][alt.concat(btc)] && symbolOB['tETH'][mainpair]) { 
+    
+        if((symbolOB[alt][alt.concat(eth)].asks || symbolOB[alt][alt.concat(btc)].bids) && symbolOB['tETH'][mainpair].asks) {
+        
+          if (alt !== 'tETH') {
+          
+            arbCalc(alt);
+          
+          }
+          
+        }
       
-    } else if (typeof symbolOB[alt][symbol] !== 'undefined' && typeof symbolOB['tETH']['tETHBTC'] !== 'undefined' ) {
-
-    obUpdatePromise(symbol, alt, update)
-    .then(checkcs(symbol, alt, cbGID))
-    .then(arbCalc(alt)) 
-    .catch(() => {
-      getOBs(symbol)
-    }) // if no snapshot
-
+      }
     }
 
-  })
+  ws.onOrderBook({ symbol:symbol, precision:PRECISION, cbGID: altID}, (ob) => { 
+    // check if symbolOB has not initialized OrderBook objects for pairs
+    if (ob.bids !== 0 && ob.asks !== 0) {
+
+      symbolOB[alt][symbol] = ob;
+
+    }
+    
+    if(ws._orderBooks[symbol].length !== 0) {
+      if(ws._orderBooks[symbol]["csVerified"]) {
+        arbCalcReady()
+      } 
+    }
+    
   
+  }) 
+
   console.log(chalk.bold("fetching orderbook for" ,symbol))
   
 }
 
 let arbCalc = async function (alt) {
 
-  let mpPre = mainpair.substring(0,4)
-  let eth =  alt,btc =  alt;
-  eth += "ETH";
-  btc += "BTC"
+  let mpPre = mainpair.substring(0,4),
+   eth =  alt.concat("ETH"), 
+   btc =  alt.concat("BTC");
 
+  let ob1 = symbolOB[alt][eth];
+  let ob2 = symbolOB[alt][btc];
+  let ob3 = symbolOB[mpPre][mainpair];
+  
   try{
     
-    let pair1ask = symbolOB[alt][eth].asks[0] //symbolOB.tOMG.tOMGETH.asks[0]
-    let pair2bid = symbolOB[alt][btc].bids[0] //symbolOB.tOMG.tOMGb.bids[0]
-    let pair3ask = symbolOB[mpPre][mainpair].asks[0] //Pair constraint
+    let pair1ask = ob1.asks[0] //symbolOB.tOMG.tOMGETH.asks[0]
+    let pair2bid = ob2.bids[0] //symbolOB.tOMG.tOMGb.bids[0]
+    let pair3ask = ob3.asks[0] //Pair constraint
 
     //console.log('PAIR1ASK:', pair1ask, symbolOB[alt], 'PAIR2BID:', pair2bid, symbolOB[p2])
     
@@ -291,23 +302,21 @@ let arbCalc = async function (alt) {
     // arbTrade array {}
     arbTrades[alt]['p1'] = pair1ask 
     arbTrades[alt]['p2'] = pair2bid
-    arbTrades[alt]['p3'] = pair3ask
+    arbTrades[alt]['p3'] = pair3ask //make independent entry 
     arbTrades[alt]['minAmount'] = minAmount
     arbTrades[alt]['crossrate'] = crossrate
     
     if (crossrate >= (1 + profit)) {
-        console.log(symbols_string.green, chalk.bold(alt_amount) , '(' , pair3ask[2]*-1 ,'ETH )' ,'->',bidask_string, chalk.magenta('crossrate:'), chalk.bold.yellow(crossrate_string))
-      }
+      console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.yellow.bold(crossrate_string)}`,new Date())
+    }
     else {
-        console.log(symbols_string.green, chalk.bold(alt_amount), '(' , pair3ask[2]*-1 ,'ETH )' , '->',bidask_string, chalk.magenta('crossrate:'), chalk.red.bold(crossrate_string))
+      console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
       }  
   }
   catch(err) {
-    let errmsg = err.message
-    let errarr 
-    console.log(alt)
+    let errmsg = err.message 
     //symbolOB[alt]['asks'] == undefined ? errarr = alt : errarr = p2
-    console.log(chalk.red.bold(errarr), errmsg.red, err)
+    console.error(alt, err)
   }
 }
 
