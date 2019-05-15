@@ -308,6 +308,30 @@ let arbCalc = async function (alt) {
     
     if (crossrate >= (1 + profit)) {
       console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.yellow.bold(crossrate_string)}`,new Date())
+      
+      let arbOrders = function() {
+        let GID = symbol.concat("OGID"),
+            TYPE = "LIMIT", 
+            AMOUNT = arbTrades[alt].minAmount, //Amount in alt currency
+            ETHAMOUNT = arbTrades[alt].minAmount * arbTrades[alt].p3 //Amount in "ETH" or mainpair currency
+
+        let orderArr = []; //Make this global?
+
+        orderArr[0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": AMOUNT, "price": arbTrades[alt].p1 };
+        orderArr[1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": AMOUNT, "price": arbTrades[alt].p2 };
+        orderArr[2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
+        
+        let ordersSent = new Promise ((resolve, reject) => {
+
+          for(let i = 0; i <= orderArr.length; i++) {
+
+            ws.submitOrder(orderArr[i]);
+            console.log(`${alt} -- Submitted order ${i+1}: ${orderArr[i].symbol} ${orderArr[i].type} ${orderArr[i].price} ${orderArr[i].amount} `, new Date())
+          }  
+
+        })
+
+      }
     }
     else {
       console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
