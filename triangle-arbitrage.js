@@ -29,6 +29,7 @@ var balances
 var triArray = []
 var wsArray = []
 var sockets = []
+var orderArr = []; 
 var mainpair = 'tETHBTC'
 
 
@@ -315,18 +316,16 @@ let arbCalc = async function (alt) {
             AMOUNT = arbTrades[alt].minAmount, //Amount in alt currency
             ETHAMOUNT = arbTrades[alt].minAmount * arbTrades[alt].p3 //Amount in "ETH" or mainpair currency
 
-        let orderArr = []; //Make this global?
-
-        orderArr[0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": AMOUNT, "price": arbTrades[alt].p1 };
-        orderArr[1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": AMOUNT, "price": arbTrades[alt].p2 };
-        orderArr[2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
+        orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": AMOUNT, "price": arbTrades[alt].p1 };
+        orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": AMOUNT, "price": arbTrades[alt].p2 };
+        orderArr[alt][2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
         
         let ordersSent = new Promise ((resolve, reject) => {
 
           for(let i = 0; i <= orderArr.length; i++) {
 
-            ws.submitOrder(orderArr[i]);
-            console.log(`${alt} -- Submitted order ${i+1}: ${orderArr[i].symbol} ${orderArr[i].type} ${orderArr[i].price} ${orderArr[i].amount} `, new Date())
+            ws.submitOrder(orderArr[alt][i]);
+            console.log(`${alt} -- Submitted order ${i+1}: ${orderArr[alt][i].symbol} ${orderArr[alt][i].type} ${orderArr[alt][i].price} ${orderArr[alt][i].amount} `, new Date())
           }  
 
         })
