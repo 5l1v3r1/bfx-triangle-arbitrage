@@ -10,11 +10,12 @@ const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
 
 const CRC = require('crc-32')
 
-const log = require ('ololog').noLocate
-const ansi = require ('ansicolor').nice
-const style = require ('ansi-styles')
-const chalk = require ('chalk')
+const log = require ('ololog').noLocate;
+const ansi = require ('ansicolor').nice;
+const style = require ('ansi-styles');
+const chalk = require ('chalk');
 const TimSort = require('timsort');
+const { EventEmitter } = require('events') //Internal Events
 
 const API_KEY = 'jZ1hZvn5dDn1rP4PrEDmY7V5ZwJ5xzzqXXgCvict0Py'
 const API_SECRET = 'IJplAkD56ljxUPOs4lJbed0XfmhFaqzIrRsYeV5CvpP'
@@ -32,6 +33,7 @@ var sockets = []
 var orderArr = []; 
 var mainpair = 'tETHBTC'
 
+const eventEmitter = new EventEmitter(); //Internal Events i.e arbCalc emit arbOpp
 
 const bfx = new BFX ({
   apiKey: API_KEY,
@@ -59,30 +61,59 @@ ws.onMessage('', (msg) => {
 
 ws.on('open', () => {
   console.log('open')
+  console.time("Finished")
   ws.auth() 
 })
 
 ws.once('auth', async () => {
+  console.time('ws.once - auth')
   balances = await rest.balances()
   console.log(balances)
   console.log('authenticated')
-
-  //ws.enableSequencing({ audit: true })
-  await subscribeOBs().then(getOBLoop())
-  //let pullOB = await getOBs();
+  subscribeOBs().then(getOBLoop())
+  console.timeEnd('ws.once - auth')
 })
 
+eventEmitter.on('ArbOpp', ()=> {
+  let alt = symbol.substring(0,4),
+      GID = symbol.concat("OGID"),
+      TYPE = "LIMIT", 
+      AMOUNT = arbTrades[alt].minAmount, //Amount in alt currency
+      ETHAMOUNT = arbTrades[alt].minAmount * arbTrades[alt].p3; //Amount in "ETH" or mainpair currency
+      let ASKAMOUNT, BUYAMOUNT;
+      AMOUNT > 0 ? ASKAMOUNT = (-1)*(AMOUNT) : BUYAMOUNT = AMOUNT;
+      AMOUNT < 0 ? ASKAMOUNT = AMOUNT : BUYAMOUNT = (-1)*(AMOUNT);
+
+  //make sure ask amounts are negative
+  orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ASKAMOUNT, "price": arbTrades[alt].p1 };
+  orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": BUYAMOUNT, "price": arbTrades[alt].p2 };
+  orderArr[alt][2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
+  
+  let ordersSent = new Promise ((resolve, reject) => {
+    try {   
+      for(let i = 0; i <= orderArr.length; i++) {
+        ws.submitOrder(orderArr[alt][i]);
+        console.log(`${alt} -- Submitted order ${i+1}: ${orderArr[alt][i].symbol} ${orderArr[alt][i].type} ${orderArr[alt][i].price} ${orderArr[alt][i].amount} `, new Date())
+      } 
+      resolve();
+    } catch(err) { reject(err) }
+  })
+  ordersSent ? console.log(`${alt} Orders sent successfully `, new Date()) : console.log(`${alt} Orders failed to send `, new Date())
+  return ordersSent;
+} )
 
 /* FUNCTIONS */
 
-// Add subscribeTrades after OB processes are done
+// Add subscribeTrades on arbOpp found
+
 /*
 let subscribeTrades = function () {
   ws.subscribeTrades()
 }
 */
 
-//let tradingManager
+
+
 
 function obUpdatePromise(symbol, alt, update) {
   let bids = update.bids;
@@ -120,13 +151,13 @@ function obUpdatePromise(symbol, alt, update) {
 //change to onOrderBookChecksum() and add promise
 
 function getOBLoop () {
-
+console.time("getOBLoop - forEach")
   tpairs.forEach( async (symbol) => { 
 
     getOBs(symbol);
 
   })
-
+console.timeEnd("getOBLoop - forEach")
 }
 
 function subscribeOBs () {
@@ -135,7 +166,8 @@ function subscribeOBs () {
   tpairs = rv2.ethbtcpairs
   
   return new Promise ( (resolve, reject) => {
-  
+    
+    console.time("subscribeOBs - tpairs.forEach");
     tpairs.forEach ( (pair) => {
 
       let pre = pair.substring(0,4); //prestring e.g "tOMG"
@@ -172,12 +204,13 @@ function subscribeOBs () {
       }
       catch(err) {
 
-        console.log(err);
+        console.error(err);
         return reject(err)
 
       }
     }); 
-
+   
+  console.timeEnd("subscribeOBs - tpairs.forEach");
   console.log(chalk.green("--DONE--"))
   console.log("Subscribed to %d out of %d", counter, tpairs.length)
   return true
@@ -224,15 +257,16 @@ function getOBs(symbol) {
   let altID = alt.concat('ID')
   let PRECISION = "P0"
   
+  //Use events
   let arbCalcReady = function() {
     if(symbolOB[alt][alt.concat(eth)] && symbolOB[alt][alt.concat(btc)] && symbolOB['tETH'][mainpair]) { 
     
         if((symbolOB[alt][alt.concat(eth)].asks || symbolOB[alt][alt.concat(btc)].bids) && symbolOB['tETH'][mainpair].asks) {
         
           if (alt !== 'tETH') {
-          
+            //console.time("arbCalc")
             arbCalc(alt);
-          
+            //console.timeEnd("arbCalc")
           }
           
         }
@@ -242,7 +276,7 @@ function getOBs(symbol) {
 
   ws.onOrderBook({ symbol:symbol, precision:PRECISION, cbGID: altID}, (ob) => { 
     // check if symbolOB has not initialized OrderBook objects for pairs
-    if (ob.bids !== 0 && ob.asks !== 0) {
+    if (ob.bids.length !== 0 && ob.asks.length !== 0) {
 
       symbolOB[alt][symbol] = ob;
 
@@ -261,6 +295,7 @@ function getOBs(symbol) {
   
 }
 
+//make EventEmitter, use listeners to detect arbOpp -> .on(arbOpp) subscribeTrades -> make orders???
 let arbCalc = async function (alt) {
 
   let mpPre = mainpair.substring(0,4),
@@ -303,34 +338,13 @@ let arbCalc = async function (alt) {
     // arbTrade array {}
     arbTrades[alt]['p1'] = pair1ask 
     arbTrades[alt]['p2'] = pair2bid
-    arbTrades[alt]['p3'] = pair3ask //make independent entry 
+    arbTrades[alt]['p3'] = pair3ask //make independent entry, make its own function to keep track of mainpair
     arbTrades[alt]['minAmount'] = minAmount
     arbTrades[alt]['crossrate'] = crossrate
     
     if (crossrate >= (1 + profit)) {
       console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.yellow.bold(crossrate_string)}`,new Date())
-      
-      let arbOrders = function() {
-        let GID = symbol.concat("OGID"),
-            TYPE = "LIMIT", 
-            AMOUNT = arbTrades[alt].minAmount, //Amount in alt currency
-            ETHAMOUNT = arbTrades[alt].minAmount * arbTrades[alt].p3 //Amount in "ETH" or mainpair currency
-
-        orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": AMOUNT, "price": arbTrades[alt].p1 };
-        orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": AMOUNT, "price": arbTrades[alt].p2 };
-        orderArr[alt][2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
-        
-        let ordersSent = new Promise ((resolve, reject) => {
-
-          for(let i = 0; i <= orderArr.length; i++) {
-
-            ws.submitOrder(orderArr[alt][i]);
-            console.log(`${alt} -- Submitted order ${i+1}: ${orderArr[alt][i].symbol} ${orderArr[alt][i].type} ${orderArr[alt][i].price} ${orderArr[alt][i].amount} `, new Date())
-          }  
-
-        })
-
-      }
+      eventEmitter.emit('ArbOpp', symbol)  
     }
     else {
       console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
@@ -344,7 +358,7 @@ let arbCalc = async function (alt) {
 }
 
 log("Finished!".green)//Finished symbolOB loop
-
+console.timeEnd("Finished")
 ws.open()
 
 module.exports.symbolOB = symbolOB;
