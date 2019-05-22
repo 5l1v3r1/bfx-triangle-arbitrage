@@ -88,7 +88,32 @@
 <body>
 
 <script src="/socket.io/socket.io.js"></script>
-<script> var socket = io.connect('http://127.0.0.1:7000')</script>
+<script> 
+  var socket = io.connect('http://127.0.0.1:7000')
+  socket.on('message', function (data) {
+    alert(data.text);
+  })  
+  socket.on('ob', function(ob) {
+
+    var symbolId = ob.symbol;
+    var alt = symbolId.substring(1,4);
+    var bidsId = alt + '_bids', 
+        asksId = alt + '_asks',
+        mainask = "mainask";
+
+    if(symbolId == 'tETHBTC')
+        document.getElementsByClassName(mainask).innerHTML = ob.asks[0][0]; //Doesnt work
+    else{
+      document.getElementById(asksId).innerHTML = ob.asks[0][0]; 
+      document.getElementById(bidsId).innerHTML = ob.bids[0][0];
+    }
+      
+
+    
+  })
+  //match pair to arbTrades pair
+  
+</script>
 
 <div class="panel panel-primary filterable">
     <div class="panel-heading text-center">
@@ -103,31 +128,28 @@
     <thead>
     <tr id="filters">
       <th>Symbol</th>
-      <th>Pair 1 (ask)</th>
-      <th>Pair 2 (bid)</th>  
-      <th>Pair 3 (ask)</th>
+      <th>Pair 1 (ask) ETH</th>
+      <th>Pair 2 (bid) BTC</th>  
+      <th>Pair 3 (ask) ETH/BTC</th>
       <th>Max Amount</th>
       <th>Profit/Loss</th>
     </tr>
     </thead>
-  
-    <% for (var element in arbTrades) {%>
-      <% let eth = element.concat('ETH')%>
-      <% btc = element.concat('BTC')%>
+
+    <% for(var i=0; i<=alts.length; i++) {%>
+    <% let alt = String(alts[i]).substring(1,4) %>
+    <% let bids = alt + '_bids'%>
+    <% let asks = alt + '_asks'%>
+    <% let mainask = "mainask"%>
       <tr>
-        <td><b><%=element%></b></td>
-        <td><%=arbTrades[element]["p1"][0]%></td>
-        <td><%=arbTrades[element]["p2"][0]%></td>
-        <td><%=arbTrades[element]["p3"]%></td>
+        <td id="<%=alt%>"><b><%=alt%></b></td>
+        <td id="<%=asks%>"><%=asks%></td>
+        <td id="<%=bids%>"><%=bids%></td>
+        <td id="<%=mainask%>"></td>
         <td></td>
-        <td>
-          <%if(arbTrades[element]['crossrate'] < 1) {%>
-          <font color="red"><%=((arbTrades[element]['crossrate']-1)*100).toPrecision(3)%>%</font>
-          <%} else if (arbTrades[element]['crossrate'] >= 1) {%>
-          <font color="green"><%=((arbTrades[element]['crossrate']-1)*100).toPrecision(3)%>%</font>
-          <%}%>
-        </td>
+        <td></td>
       </tr>
+    
     <%}%>
 
   </tbody>

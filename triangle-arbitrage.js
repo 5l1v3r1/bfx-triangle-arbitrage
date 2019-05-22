@@ -31,6 +31,7 @@ var triArray = []
 var wsArray = []
 var sockets = []
 var orderArr = []; 
+var alts = [];
 var mainpair = 'tETHBTC'
 
 const eventEmitter = new EventEmitter(); //Internal Events i.e arbCalc emit arbOpp
@@ -74,7 +75,7 @@ ws.once('auth', async () => {
   console.timeEnd('ws.once - auth')
 })
 
-eventEmitter.on('ArbOpp', ()=> {
+eventEmitter.on('ArbOpp', () => {
   let alt = symbol.substring(0,4),
       GID = symbol.concat("OGID"),
       TYPE = "LIMIT", 
@@ -192,7 +193,7 @@ function subscribeOBs () {
           symbolOB[pre]['lastCs'] = -1;
           
           arbTrades[pre] = {p1:"", p2:"", minAmount:"", crossrate:""};
-
+          alts.push(pre);
         } 
 
         if (pair == mainpair) {
@@ -209,10 +210,12 @@ function subscribeOBs () {
 
       }
     }); 
-   
+  alts.push("tETHBTC");
   console.timeEnd("subscribeOBs - tpairs.forEach");
   console.log(chalk.green("--DONE--"))
   console.log("Subscribed to %d out of %d", counter, tpairs.length)
+  module.exports.tpairs = tpairs;
+  module.exports.alts = alts;
   return true
   
   })
@@ -279,7 +282,7 @@ function getOBs(symbol) {
     if (ob.bids.length !== 0 && ob.asks.length !== 0) {
 
       symbolOB[alt][symbol] = ob;
-
+      eventEmitter.emit('ob', { symbol: symbol, bids: ob.bids, asks: ob.asks });
     }
     
     if(ws._orderBooks[symbol].length !== 0) {
@@ -364,3 +367,4 @@ ws.open()
 module.exports.symbolOB = symbolOB;
 module.exports.arbTrades = arbTrades; 
 module.exports.triArray = triArray;
+module.exports.emitter = eventEmitter;
