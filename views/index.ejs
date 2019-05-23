@@ -90,26 +90,32 @@
 <script src="/socket.io/socket.io.js"></script>
 <script> 
   var socket = io.connect('http://127.0.0.1:7000')
+  var ob_array = [];
   socket.on('message', function (data) {
     alert(data.text);
-  })  
-  socket.on('ob', function(ob) {
+  })
 
+  socket.on('ob', function(ob) {
     var symbolId = ob.symbol;
-    var alt = symbolId.substring(1,4);
+    var alt = symbolId.substring(0,4);
+    var eth = alt + 'ETH', btc = alt + 'BTC';
+
     var bidsId = alt + '_bids', 
         asksId = alt + '_asks',
-        mainask = "mainask";
+        mainask = alt + '_mainask';
 
-    if(symbolId == 'tETHBTC')
-        document.getElementsByClassName(mainask).innerHTML = ob.asks[0][0]; //Doesnt work
-    else{
-      document.getElementById(asksId).innerHTML = ob.asks[0][0]; 
-      document.getElementById(bidsId).innerHTML = ob.bids[0][0];
-    }
-      
-
+    ob_array[symbolId] = ob; //assign to ob_array
     
+    if(symbolId.substring(4) == 'ETH')
+      document.getElementById(asksId).innerHTML = ob_array[symbolId]['asks'][0][0]; 
+    
+    if(symbolId.substring(4) == 'BTC')
+      document.getElementById(bidsId).innerHTML = ob_array[symbolId]['bids'][0][0];
+    
+    if(alt == 'ETH'){
+      document.getElementById(mainask).innerHTML = ob_array[symbolId]['asks'][0][0];
+    }
+
   })
   //match pair to arbTrades pair
   
@@ -137,10 +143,10 @@
     </thead>
 
     <% for(var i=0; i<=alts.length; i++) {%>
-    <% let alt = String(alts[i]).substring(1,4) %>
+    <% let alt = String(alts[i]).substring(0,4) %>
     <% let bids = alt + '_bids'%>
     <% let asks = alt + '_asks'%>
-    <% let mainask = "mainask"%>
+    <% let mainask = alt + '_mainask'%>
       <tr>
         <td id="<%=alt%>"><b><%=alt%></b></td>
         <td id="<%=asks%>"><%=asks%></td>

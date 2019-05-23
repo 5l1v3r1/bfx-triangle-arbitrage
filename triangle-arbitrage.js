@@ -113,9 +113,6 @@ let subscribeTrades = function () {
 }
 */
 
-
-
-
 function obUpdatePromise(symbol, alt, update) {
   let bids = update.bids;
   let asks = update.asks;
@@ -148,8 +145,6 @@ function obUpdatePromise(symbol, alt, update) {
 
   })
 }
-
-//change to onOrderBookChecksum() and add promise
 
 function getOBLoop () {
 console.time("getOBLoop - forEach")
@@ -347,7 +342,7 @@ let arbCalc = async function (alt) {
     
     if (crossrate >= (1 + profit)) {
       console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.yellow.bold(crossrate_string)}`,new Date())
-      eventEmitter.emit('ArbOpp', symbol)  
+      eventEmitter.emit('ArbOpp', alt)  
     }
     else {
       console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
