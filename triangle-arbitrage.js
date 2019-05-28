@@ -67,11 +67,9 @@ ws.on('open', () => {
 })
 
 ws.once('auth', async () => {
-  console.time('ws.once - auth')
-  balances = await rest.balances()
-  console.log(balances)
+  console.time('ws.once - auth')  
   console.log('authenticated')
-  subscribeOBs().then(getOBLoop())
+  getBal().then(subscribeOBs()).then(getOBLoop())
   console.timeEnd('ws.once - auth')
 })
 
@@ -112,6 +110,13 @@ let subscribeTrades = function () {
   ws.subscribeTrades()
 }
 */
+
+async function getBal () {
+  balances = await rest.balances()
+  console.log(balances)
+  module.exports.balances = balances;
+  return balances;
+}
 
 function obUpdatePromise(symbol, alt, update) {
   let bids = update.bids;

@@ -21,6 +21,42 @@
 </head>
 
 <body class="">
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script> 
+          var socket = io.connect('http://127.0.0.1:7000')
+          var ob_array = [];
+          socket.on('message', function (data) {
+            alert(data.text);
+          })
+        
+          socket.on('ob', function(ob) {
+            var symbolId = ob.symbol;
+            var alt = symbolId.substring(0,4);
+            var eth = alt + 'ETH', btc = alt + 'BTC';
+        
+            var bidsId = alt + '_bids', 
+                asksId = alt + '_asks',
+                mainask = alt + '_mainask';
+        
+            ob_array[symbolId] = ob; //assign to ob_array
+            
+            if(symbolId.substring(4) == 'ETH')
+              document.getElementById(asksId).innerHTML = ob_array[symbolId]['asks'][0][0]; 
+            
+            if(symbolId.substring(4) == 'BTC')
+              document.getElementById(bidsId).innerHTML = ob_array[symbolId]['bids'][0][0];
+            
+            if(alt == 'ETH'){
+              document.getElementById(mainask).innerHTML = ob_array[symbolId]['asks'][0][0];
+            }
+        
+          })
+          //match pair to arbTrades pair
+          
+        </script>
+         
+
   <div class="wrapper ">
     <div class="sidebar" data-color="white" data-active-color="danger">
       <!--
@@ -176,9 +212,8 @@
                   </div>
                   <div class="col-7 col-md-8">
                     <div class="numbers">
-                      <p class="card-category">Capacity</p>
-                      <p class="card-title">150GB
-                        <p>
+                      <p class="card-category"><%=balances[0].currency%></p>
+                      <p class="card-title"><%=balances[0].amount%></p>
                     </div>
                   </div>
                 </div>
@@ -202,9 +237,9 @@
                   </div>
                   <div class="col-7 col-md-8">
                     <div class="numbers">
-                      <p class="card-category">Revenue</p>
-                      <p class="card-title">$ 1,345
-                        <p>
+                      <p class="card-category"><%=balances[1].currency%></p>
+                      <p class="card-title"><%=balances[1].amount%>
+                      </p>
                     </div>
                   </div>
                 </div>
