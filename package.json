@@ -1422,6 +1422,7 @@
       "resolved": "https://registry.npmjs.org/crypto-js/-/crypto-js-3.1.9-1.tgz",
       "version": "3.1.9-1"
     },
+    "cryptocurrency-icons": "^0.13.0",
     "currently-unhandled": {
       "integrity": "sha1-mI3zP+qxke95mmE2nddsF635V+o=",
       "requires": {
