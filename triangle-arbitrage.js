@@ -33,6 +33,7 @@ var sockets = []
 var orderArr = []; 
 var alts = [];
 var mainpair = 'tETHBTC'
+var symbols_details;
 
 const eventEmitter = new EventEmitter(); //Internal Events i.e arbCalc emit arbOpp
 
