@@ -49,7 +49,7 @@ const ws = bfx.ws(2,{
   transform: true // auto-transform array OBs to OrderBook objects
 }) //WSv2
 
-// VSC git push through terminal test
+// Add min/max order size check from https://api.bitfinex.com/v1/symbols_details (array)
 
 ws.on('error', (err) => {
   console.log('error: %s', err)
