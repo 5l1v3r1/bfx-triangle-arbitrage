@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="/assets/img/favicon.png">
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
   <title>
-    Paper Dashboard 2 by Creative Tim
+    Paper Dashboard 2 
   </title>
   <meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no' name='viewport' />
   <!--     Fonts and icons     -->
@@ -69,7 +69,7 @@
           </div>
         </a>
         <a href="http://www.creative-tim.com" class="simple-text logo-normal">
-          Creative Tim
+          BFX Arbitrage Bot
           <!-- <div class="logo-image-big">
             <img src="/assets/img/logo-big.png">
           </div> -->
@@ -207,7 +207,7 @@
                 <div class="row">
                   <div class="col-5 col-md-4">
                     <div class="icon-big text-center icon-warning">
-                      <i class="nc-icon" src="/crypto-icons/32@2x/color/bat@2x.svg%>"></i>
+                      <img src="/crypto-icons/<%=String(balances[0].currency).concat('@2x.png')%>"> <!-- crypto icon #1 -->
                     </div>
                   </div>
                   <div class="col-7 col-md-8">
@@ -232,7 +232,7 @@
                 <div class="row">
                   <div class="col-5 col-md-4">
                     <div class="icon-big text-center icon-warning">
-                      <i class="nc-icon nc-money-coins text-success"></i>
+                      <img src="/crypto-icons/<%=String(balances[1].currency).concat('@2x.png')%>"> <!-- crypto icon #2 -->
                     </div>
                   </div>
                   <div class="col-7 col-md-8">
@@ -247,7 +247,7 @@
               <div class="card-footer ">
                 <hr>
                 <div class="stats">
-                  <i class="fa fa-calendar-o"></i> Last day
+                  <i class="fa fa-refresh"></i> Update Now
                 </div>
               </div>
             </div>
@@ -258,13 +258,13 @@
                 <div class="row">
                   <div class="col-5 col-md-4">
                     <div class="icon-big text-center icon-warning">
-                      <i class="nc-icon nc-vector text-danger"></i>
+                      <img src="/crypto-icons/<%=String(balances[2].currency).concat('@2x.png')%>"> <!-- Crypto icon #3 -->
                     </div>
                   </div>
                   <div class="col-7 col-md-8">
                     <div class="numbers">
-                      <p class="card-category">Errors</p>
-                      <p class="card-title">23
+                      <p class="card-category"><%=balances[2].currency%></p>
+                      <p class="card-title"><%=balances[2].amount%>
                         <p>
                     </div>
                   </div>
@@ -273,7 +273,7 @@
               <div class="card-footer ">
                 <hr>
                 <div class="stats">
-                  <i class="fa fa-clock-o"></i> In the last hour
+                  <i class="fa fa-refresh"></i> Update Now
                 </div>
               </div>
             </div>
@@ -284,13 +284,13 @@
                 <div class="row">
                   <div class="col-5 col-md-4">
                     <div class="icon-big text-center icon-warning">
-                      <i class="nc-icon nc-favourite-28 text-primary"></i>
+                      <img src="/crypto-icons/<%=String(balances[3].currency).concat('@2x.png')%>"> <!-- Crypto icon #3 -->
                     </div>
                   </div>
                   <div class="col-7 col-md-8">
                     <div class="numbers">
-                      <p class="card-category">Followers</p>
-                      <p class="card-title">+45K
+                      <p class="card-category"><%=balances[3].currency%></p>
+                      <p class="card-title"><%=balances[3].amount%>
                         <p>
                     </div>
                   </div>
@@ -299,7 +299,7 @@
               <div class="card-footer ">
                 <hr>
                 <div class="stats">
-                  <i class="fa fa-refresh"></i> Update now
+                  <i class="fa fa-refresh"></i> Update Now
                 </div>
               </div>
             </div>
