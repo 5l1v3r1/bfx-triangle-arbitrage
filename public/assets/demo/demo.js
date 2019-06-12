@@ -17,21 +17,23 @@ demo = {
     chartColor = "#FFFFFF";
 
     ctx = document.getElementById('chartHours').getContext("2d");
-
+    
     myChart = new Chart(ctx, {
       type: 'line',
 
       data: {
         labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"],
         datasets: [{
+            //Dataset 1
             borderColor: "#6bd098",
             backgroundColor: "#6bd098",
             pointRadius: 0,
             pointHoverRadius: 0,
             borderWidth: 3,
-            data: [300, 310, 316, 322, 330, 326, 333, 345, 338, 354]
+            data: [300, 310, 316, 322, 330, 326, 333, 345, 338, 900]
           },
           {
+            //Dataset 2
             borderColor: "#f17e5d",
             backgroundColor: "#f17e5d",
             pointRadius: 0,
@@ -40,6 +42,7 @@ demo = {
             data: [320, 340, 365, 360, 370, 385, 390, 384, 408, 420]
           },
           {
+            //Dataset 3
             borderColor: "#fcc468",
             backgroundColor: "#fcc468",
             pointRadius: 0,
@@ -94,6 +97,7 @@ demo = {
 
   },
 
+  //First Chart
   initChartsPages: function() {
     chartColor = "#FFFFFF";
 
@@ -103,7 +107,7 @@ demo = {
       type: 'line',
 
       data: {
-        labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"],
+        labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
         datasets: [{
             borderColor: "#6bd098",
             backgroundColor: "#6bd098",
