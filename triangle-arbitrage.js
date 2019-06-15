@@ -26,14 +26,14 @@ const API_SECRET = 'IJplAkD56ljxUPOs4lJbed0XfmhFaqzIrRsYeV5CvpP'
 var tpairs = []   // "tETHBTC"
 var symbolOB = [] // {bids:[], asks:[], midprice:[], lastmidprice:[]}
 var arbTrades = {} // {p1:[], p2:[], p3:[], minAmount:[]}
-var balances
+var balances = []
 var triArray = []
 var wsArray = []
 var sockets = []
 var orderArr = []; 
 var alts = [];
 var mainpair = 'tETHBTC'
-var symbols_details;
+var symbols_details = [];
 
 const eventEmitter = new EventEmitter(); //Internal Events i.e arbCalc emit arbOpp
 
@@ -44,7 +44,7 @@ const bfx = new BFX ({
   transform: true // auto-transform array OBs to OrderBook objects
 })
 
-const rest = bfx.rest(2) //RESTv2
+//const rest = bfx.rest(2) //RESTv2
 const ws = bfx.ws(2,{
   manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
   transform: true // auto-transform array OBs to OrderBook objects
@@ -68,10 +68,10 @@ ws.on('open', () => {
 })
 
 ws.once('auth', async () => {
-  console.time('ws.once - auth')  
-  console.log('authenticated')
-  getBal().then(subscribeOBs()).then(getOBLoop())
-  console.timeEnd('ws.once - auth')
+  console.time('ws.once - auth');  
+  console.log('authenticated');
+  getBal().then(subscribeOBs()).then(getOBLoop());
+  console.timeEnd('ws.once - auth');
 })
 
 eventEmitter.on('ArbOpp', () => {
@@ -102,6 +102,17 @@ eventEmitter.on('ArbOpp', () => {
   return ordersSent;
 } )
 
+ws.onWalletSnapshot('', (bal) => { 
+  var amount_currencies = bal.length;
+  console.log(bal.currency);
+  for(var i = 0; i<= bal.length; i++) { balances[i] = bal[i]; }
+
+}) 
+ws.onWalletUpdate('', (bal) => { 
+  console.log(bal);
+
+})
+
 /* FUNCTIONS */
 
 // Add subscribeTrades on arbOpp found
@@ -113,7 +124,6 @@ let subscribeTrades = function () {
 */
 
 async function getBal () {
-  balances = await rest.balances()
   console.log(balances)
   module.exports.balances = balances;
   return balances;
