@@ -97,7 +97,8 @@ eventEmitter.on('ArbOpp', (symbol) => {
 //Initialize orderArr, 3 orders
   if (!orderArr[alt]) { 
     for(var i = 0; i <= 3; i++) {
-      orderArr[alt][i] 
+      var p = 'p' + i+1;
+      orderArr[alt][i] = arbTrades[alt][p];
     }
   }
   
@@ -121,9 +122,12 @@ eventEmitter.on('ArbOpp', (symbol) => {
 
 ws.onWalletSnapshot('', (bal) => { 
   var amount_currencies = bal.length;
-  console.log(bal.currency);
-  for(var i = 0; i<= bal.length; i++) { balances[i] = bal[i]; }
-
+  console.log(`-- Balances ${Date.now()}--`)
+  for(var i = 0; i<amount_currencies; i++) { 
+    balances[i] = bal[i]; 
+    console.log(bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
+  }
+  getBal();
 }) 
 ws.onWalletUpdate('', (bal) => { 
   console.log(bal);
