@@ -74,16 +74,33 @@ ws.once('auth', async () => {
   console.timeEnd('ws.once - auth');
 })
 
-eventEmitter.on('ArbOpp', () => {
+eventEmitter.on('ArbOpp', (symbol) => {
   let alt = symbol.substring(0,4),
-      GID = symbol.concat("OGID"),
-      TYPE = "LIMIT", 
+      eth = alt + 'eth',
+      btc = alt + 'btc',
+      GID = symbol.concat("OGID");
+
+  let TYPE = "LIMIT", 
       AMOUNT = arbTrades[alt].minAmount, //Amount in alt currency
       ETHAMOUNT = arbTrades[alt].minAmount * arbTrades[alt].p3; //Amount in "ETH" or mainpair currency
-      let ASKAMOUNT, BUYAMOUNT;
+  
+  let ASKAMOUNT, BUYAMOUNT;
+
       AMOUNT > 0 ? ASKAMOUNT = (-1)*(AMOUNT) : BUYAMOUNT = AMOUNT;
       AMOUNT < 0 ? ASKAMOUNT = AMOUNT : BUYAMOUNT = (-1)*(AMOUNT);
 
+/**---------------------------**/  
+/**-- BACK TEST THIS FIRST! --**/
+/**---------------------------**/
+//Still need to add logging. to file maybe?  
+
+//Initialize orderArr, 3 orders
+  if (!orderArr[alt]) { 
+    for(var i = 0; i <= 3; i++) {
+      orderArr[alt][i] 
+    }
+  }
+  
   //make sure ask amounts are negative
   orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ASKAMOUNT, "price": arbTrades[alt].p1 };
   orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": BUYAMOUNT, "price": arbTrades[alt].p2 };
