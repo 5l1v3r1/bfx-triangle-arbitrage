@@ -158,39 +158,6 @@ async function getBal () {
   return balances;
 }
 
-function obUpdatePromise(symbol, alt, update) {
-  let bids = update.bids;
-  let asks = update.asks;
-
-  return new Promise((resolve, reject) => { 
-
-    try {
-      
-      if(bids){
-        for (let i = 0; i < update.bids.length; i++) {
-          let obj = bids[i]
-          let currentEntry = Object.keys(obj).map((k) => obj[k])
-          symbolOB[alt][symbol].updateWith(currentEntry)
-        }
-      }
-
-      if(asks) {
-        for (let i = 0; i < update.asks.length; i++) {
-          let obj = asks[i]
-          let currentEntry = Object.keys(obj).map((k) => obj[k])
-          symbolOB[alt][symbol].updateWith(currentEntry)
-        }
-      }
-
-    } catch(err) {
-      return reject(err)
-    } 
-    
-    return resolve()
-
-  })
-}
-
 function getOBLoop () {
 console.time("getOBLoop - forEach")
   tpairs.forEach( async (symbol) => { 
