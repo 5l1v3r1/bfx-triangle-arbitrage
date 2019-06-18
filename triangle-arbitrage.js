@@ -63,7 +63,6 @@ ws.onMessage('', (msg) => {
 
 ws.on('open', () => {
   console.log('open')
-  console.time("Finished")
   ws.auth() 
 })
 
@@ -95,22 +94,23 @@ eventEmitter.on('ArbOpp', (symbol) => {
 //Still need to add logging. to file maybe?  
 
 //Initialize orderArr, 3 orders
-  if (!orderArr[alt]) { 
-    for(var i = 0; i <= 3; i++) {
-      var p = 'p' + i+1;
-      orderArr[alt][i] = arbTrades[alt][p];
-    }
-  }
-  
+
   //make sure ask amounts are negative
-  orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ASKAMOUNT, "price": arbTrades[alt].p1 };
-  orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": BUYAMOUNT, "price": arbTrades[alt].p2 };
-  orderArr[alt][2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
+  if(!orderArr[alt]) {
+    orderArr[alt].push({ "gid": GID, "type": TYPE, "symbol": eth, "amount": ASKAMOUNT, "price": arbTrades[alt].p1 });
+    orderArr[alt].push({ "gid": GID, "type": TYPE, "symbol": btc, "amount": BUYAMOUNT, "price": arbTrades[alt].p2 });
+    orderArr[alt].push({ "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 });
+  } 
+  else {
+    orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ASKAMOUNT, "price": arbTrades[alt].p1 };
+    orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": BUYAMOUNT, "price": arbTrades[alt].p2 };
+    orderArr[alt][2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
+  }
   
   let ordersSent = new Promise ((resolve, reject) => {
     try {   
       for(let i = 0; i <= orderArr.length; i++) {
-        ws.submitOrder(orderArr[alt][i]);
+        //ws.submitOrder(orderArr[alt][i]);
         console.log(`${alt} -- Submitted order ${i+1}: ${orderArr[alt][i].symbol} ${orderArr[alt][i].type} ${orderArr[alt][i].price} ${orderArr[alt][i].amount} `, new Date())
       } 
       resolve();
@@ -122,16 +122,24 @@ eventEmitter.on('ArbOpp', (symbol) => {
 
 ws.onWalletSnapshot('', (bal) => { 
   var amount_currencies = bal.length;
-  console.log(`-- Balances ${Date.now()}--`)
+  console.log(`-- Balances Snapshot ${Date.now()}--`)
+  console.log(`${amount_currencies} currencies`)
   for(var i = 0; i<amount_currencies; i++) { 
     balances[i] = bal[i]; 
-    console.log(bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
+    console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
   }
   getBal();
 }) 
-ws.onWalletUpdate('', (bal) => { 
-  console.log(bal);
 
+ws.onWalletUpdate('', (bal) => { 
+  var amount_currencies = bal.length;
+  console.log(`-- Balances Update ${Date.now()}--`)
+  console.log(`${amount_currencies} currencies`)
+  for(var i = 0; i<amount_currencies; i++) { 
+    balances[i] = bal[i]; 
+    console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
+  }
+  getBal();
 })
 
 /* FUNCTIONS */
@@ -261,11 +269,9 @@ function reSubscribe(symbol, alt) {
   symbolOB[alt][symbol]['asks'] = []
   
   let unsubbed = new Promise ((resolve, reject) => {
-
     ws.unsubscribeOrderBook(symbol) 
       ? resolve(console.log(`Unsubscribed from ${symbol}`)) 
       : reject(console.log(`Failed to unsubscribe from ${symbol}`))
-    
   })
 
   if (unsubbed) {
@@ -303,9 +309,7 @@ function getOBs(symbol) {
             arbCalc(alt);
             //console.timeEnd("arbCalc")
           }
-          
         }
-      
       }
     }
 
@@ -392,8 +396,7 @@ let arbCalc = async function (alt) {
   }
 }
 
-log("Finished!".green)//Finished symbolOB loop
-console.timeEnd("Finished")
+console.log("Finished!".green)//Finished symbolOB loop
 ws.open()
 
 module.exports.symbolOB = symbolOB;
