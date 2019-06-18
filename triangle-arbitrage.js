@@ -44,11 +44,12 @@ const bfx = new BFX ({
   transform: true // auto-transform array OBs to OrderBook objects
 })
 
-//const rest = bfx.rest(2) //RESTv2
 const ws = bfx.ws(2,{
   manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
   transform: true // auto-transform array OBs to OrderBook objects
-}) //WSv2
+}) 
+
+/* ws listeners - bfx-api-node */
 
 // Add min/max order size check from https://api.bitfinex.com/v1/symbols_details (array)
 
@@ -72,6 +73,30 @@ ws.once('auth', async () => {
   getBal().then(subscribeOBs()).then(getOBLoop());
   console.timeEnd('ws.once - auth');
 })
+
+ws.onWalletSnapshot('', (bal) => { 
+  var amount_currencies = bal.length;
+  console.log(`-- Balances Snapshot ${Date.now()}--`)
+  console.log(`${amount_currencies} currencies`)
+  for(var i = 0; i<amount_currencies; i++) { 
+    balances[i] = bal[i]; 
+    console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
+  }
+  getBal();
+}) 
+
+ws.onWalletUpdate('', (bal) => { 
+  var amount_currencies = bal.length;
+  console.log(`-- Balances Update ${Date.now()}--`)
+  console.log(`${amount_currencies} currencies`)
+  for(var i = 0; i<amount_currencies; i++) { 
+    balances[i] = bal[i]; 
+    console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
+  }
+  getBal();
+})
+
+/* eventEmitter listeners - internal */
 
 eventEmitter.on('ArbOpp', (symbol) => {
   let alt = symbol.substring(0,4),
@@ -120,39 +145,9 @@ eventEmitter.on('ArbOpp', (symbol) => {
   return ordersSent;
 } )
 
-ws.onWalletSnapshot('', (bal) => { 
-  var amount_currencies = bal.length;
-  console.log(`-- Balances Snapshot ${Date.now()}--`)
-  console.log(`${amount_currencies} currencies`)
-  for(var i = 0; i<amount_currencies; i++) { 
-    balances[i] = bal[i]; 
-    console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
-  }
-  getBal();
-}) 
-
-ws.onWalletUpdate('', (bal) => { 
-  var amount_currencies = bal.length;
-  console.log(`-- Balances Update ${Date.now()}--`)
-  console.log(`${amount_currencies} currencies`)
-  for(var i = 0; i<amount_currencies; i++) { 
-    balances[i] = bal[i]; 
-    console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
-  }
-  getBal();
-})
-
 /* FUNCTIONS */
 
-// Add subscribeTrades on arbOpp found
-
-/*
-let subscribeTrades = function () {
-  ws.subscribeTrades()
-}
-*/
-
-async function getBal () {
+function getBal () {
   console.log(balances)
   module.exports.balances = balances;
   return balances;
@@ -366,6 +361,7 @@ let arbCalc = async function (alt) {
 console.log("Finished!".green)//Finished symbolOB loop
 ws.open()
 
+// Organize these?
 module.exports.symbolOB = symbolOB;
 module.exports.arbTrades = arbTrades; 
 module.exports.triArray = triArray;
