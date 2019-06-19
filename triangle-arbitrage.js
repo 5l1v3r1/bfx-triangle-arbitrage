@@ -7,7 +7,7 @@ const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const BFX = require('bitfinex-api-node')
 const {OrderBook} = require('bfx-api-node-models')
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
-
+const path = require('path');
 const CRC = require('crc-32')
 
 const log = require ('ololog').noLocate;
@@ -19,6 +19,9 @@ const { EventEmitter } = require('events') //Internal Events
 
 const API_KEY = 'jZ1hZvn5dDn1rP4PrEDmY7V5ZwJ5xzzqXXgCvict0Py'
 const API_SECRET = 'IJplAkD56ljxUPOs4lJbed0XfmhFaqzIrRsYeV5CvpP'
+
+var fs = require('fs');
+var stream = fs.createWriteStream(path.join(__dirname,"/log/arbOpp_data.txt"))
 
 //Pair Arrays
 //Need to use public API to update pairs automatically, filter out symbols that dont have multiple pairs to arb on.
@@ -113,19 +116,18 @@ eventEmitter.on('ArbOpp', (symbol) => {
       AMOUNT > 0 ? ASKAMOUNT = (-1)*(AMOUNT) : BUYAMOUNT = AMOUNT;
       AMOUNT < 0 ? ASKAMOUNT = AMOUNT : BUYAMOUNT = (-1)*(AMOUNT);
 
-/**---------------------------**/  
-/**-- BACK TEST THIS FIRST! --**/
-/**---------------------------**/
-//Still need to add logging. to file maybe?  
-
-//Initialize orderArr, 3 orders
-
+  /**---------------------------**/  
+  /**-- BACK TEST THIS FIRST! --**/
+  /**---------------------------**/
+  //Still need to add logging. to file maybe?  
+  //Initialize orderArr, 3 orders
   //make sure ask amounts are negative
   orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ASKAMOUNT, "price": arbTrades[alt].p1 };
   orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": BUYAMOUNT, "price": arbTrades[alt].p2 };
   orderArr[alt][2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
 
-  
+  //log to arbOpp.txt
+  stream.write(`${Date.now()} - ${alt} ${arbTrades[alt]} \n`)
   let ordersSent = new Promise ((resolve, reject) => {
     try {   
       for(let i = 0; i <= orderArr.length; i++) {
@@ -135,9 +137,10 @@ eventEmitter.on('ArbOpp', (symbol) => {
       resolve();
     } catch(err) { reject(err) }
   })
+
   ordersSent ? console.log(`${alt} Orders sent successfully `, new Date()) : console.log(`${alt} Orders failed to send `, new Date())
   return ordersSent;
-} )
+})
 
 /* FUNCTIONS */
 
@@ -146,8 +149,6 @@ async function getBal () {
   module.exports.balances = balances;
   return balances;
 }
-
-
 
 function getOBLoop () {
 console.time("getOBLoop - forEach")
