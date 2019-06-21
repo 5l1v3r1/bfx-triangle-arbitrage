@@ -267,7 +267,9 @@ function getOBs(symbol) {
   let eth = 'ETH', btc = 'BTC'
   let altID = alt.concat('ID')
   let PRECISION = "P0"
-  
+  let count = 0;
+  let checksumcount = []
+  checksumcount[symbol] = 0;
   //Use events
   let arbCalcReady = function() {
     if(symbolOB[alt][alt.concat(eth)] && symbolOB[alt][alt.concat(btc)] && symbolOB['tETH'][mainpair]) { 
@@ -289,11 +291,23 @@ function getOBs(symbol) {
 
       symbolOB[alt][symbol] = ob;
       eventEmitter.emit('ob', { symbol: symbol, bids: ob.bids, asks: ob.asks });
+    
     }
     
     if(ws._orderBooks[symbol].length !== 0) {
       if(ws._orderBooks[symbol]["csVerified"]) {
         arbCalcReady()
+      } else {
+        let counter = checksumcount[symbol];
+        counter++;
+        if(checksumcount[symbol] >= 5) {
+          let unsub = ws.unsubscribeOrderBook(symbol);
+          console.log(`Unsubscribed from ${symbol}`)
+          if(unsub) {
+            ws.subscribeOrderBook(symbol);
+            console.log(`Resubscribed to ${symbol}`);  
+          }
+        }
       } 
     }
     
