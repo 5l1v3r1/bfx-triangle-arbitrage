@@ -389,24 +389,12 @@ let arbCalc = async function (alt) {
       if(arbTrades[alt].crossrate >= 1) {
         if(crossrate < arbTrades[alt].crossrate) {
 
-          stream.write(`
-            [${Date.now()}] 
-            ${alt} 
-            Profit: ${(arbTrades[alt].crossrate-1)*100} 
-            Amount: ${arbTrades[alt].minAmount} 
-            p1: ${arbTrades[alt].p1}
-            p2: ${arbTrades[alt].p2}
-            p3: ${arbTrades[alt].p3} 
-            - Open for ${(enddate-arbTrades[alt]['stime'])/1000} secs (${Math.abs(nowms - arbTrades[alt]['stime'])}ms) 
-            \n`)
+          stream.write(`[${Date.now()}] ${alt} Profit: ${(arbTrades[alt].crossrate-1)*100}% Amount: ${arbTrades[alt].minAmount} p1: ${arbTrades[alt].p1} p2: ${arbTrades[alt].p2} p3: ${arbTrades[alt].p3} - Open for ${(enddate-arbTrades[alt]['stime'])/1000} secs (${Math.abs(nowms - arbTrades[alt]['stime'])}ms)\n`)
         
         }
       }
     }
 
-    if(typeof arbTrades[alt]['stime'] !== 'undefined')
-      console.log(`${alt} ${nowms} ${arbTrades[alt]['stime']} ${Math.abs(nowms - arbTrades[alt]['stime'])}`)
-    
     // arbTrade array {}
     arbTrades[alt]['p1'] = pair1ask 
     arbTrades[alt]['p2'] = pair2bid
