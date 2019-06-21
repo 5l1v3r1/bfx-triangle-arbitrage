@@ -382,7 +382,8 @@ let arbCalc = async function (alt) {
 
       enddate = Date.now(); 
 
-      console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
+      if(crossrate !== arbTrades[alt].crossrate) 
+       console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
             
       //Check if opp has closed
       if(arbTrades[alt].crossrate >= 1) {
