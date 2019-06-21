@@ -19,9 +19,7 @@ const { EventEmitter } = require('events') //Internal Events
 
 const API_KEY = 'jZ1hZvn5dDn1rP4PrEDmY7V5ZwJ5xzzqXXgCvict0Py'
 const API_SECRET = 'IJplAkD56ljxUPOs4lJbed0XfmhFaqzIrRsYeV5CvpP'
-
 var fs = require('fs');
-var stream = fs.createWriteStream(path.join(__dirname,"/log/arbOpp_data.txt"))
 
 //Pair Arrays
 //Need to use public API to update pairs automatically, filter out symbols that dont have multiple pairs to arb on.
@@ -37,6 +35,7 @@ var orderArr = [];
 var alts = [];
 var mainpair = 'tETHBTC'
 var symbols_details = [];
+var stream; //fs streams
 
 const eventEmitter = new EventEmitter(); //Internal Events i.e arbCalc emit arbOpp
 
@@ -51,6 +50,12 @@ const ws = bfx.ws(2,{
   manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
   transform: true // auto-transform array OBs to OrderBook objects
 }) 
+
+if(!fs.existsSync(path.join(__dirname,"/log/arbOpp_data.txt"))) {
+  stream = fs.createWriteStream(path.join(__dirname,"/log/arbOpp_data.txt"));
+} else {
+  stream = fs.createWriteStream(path.join(__dirname,"/log/arbOpp_data.txt"), {flags: 'a'});
+}
 
 /* ws listeners - bfx-api-node */
 
@@ -101,6 +106,10 @@ ws.onWalletUpdate('', (bal) => {
 
 /* eventEmitter listeners - internal */
 
+eventEmitter.on('closed', (symbol) => {
+
+})
+
 eventEmitter.on('ArbOpp', (symbol) => {
   let alt = symbol.substring(0,4),
       eth = alt + 'eth',
@@ -112,7 +121,6 @@ eventEmitter.on('ArbOpp', (symbol) => {
       ETHAMOUNT = arbTrades[alt].minAmount * arbTrades[alt].p3; //Amount in "ETH" or mainpair currency
   
   let ASKAMOUNT, BUYAMOUNT;
-
       AMOUNT > 0 ? ASKAMOUNT = (-1)*(AMOUNT) : BUYAMOUNT = AMOUNT;
       AMOUNT < 0 ? ASKAMOUNT = AMOUNT : BUYAMOUNT = (-1)*(AMOUNT);
 
@@ -126,8 +134,6 @@ eventEmitter.on('ArbOpp', (symbol) => {
   orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": BUYAMOUNT, "price": arbTrades[alt].p2 };
   orderArr[alt][2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
 
-  //log to arbOpp.txt
-  stream.write(`${Date.now()} - ${alt} ${arbTrades[alt]} \n`)
   let ordersSent = new Promise ((resolve, reject) => {
     try {   
       for(let i = 0; i <= orderArr.length; i++) {
@@ -338,20 +344,74 @@ let arbCalc = async function (alt) {
     else
       minAmount = minAmount
 
+
+    let nowms = Date.now();
+    let timer, endtimer; //console timers
+    let begindate, enddate; //Date.now() timestamps
+
+    if (crossrate >= (1 + profit)) {
+      
+      console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.yellow.bold(crossrate_string)}`,new Date())
+      eventEmitter.emit('ArbOpp', alt)  
+      
+      //log to arbOpp.txt
+      if(crossrate !== arbTrades[alt].crossrate) {
+        
+        if(typeof timer == 'undefined') {
+          //Start opportunity Timer
+          timer = console.time(alt);
+        } else {
+          console.timeLog(alt);
+        }
+
+        if(typeof begindate == 'undefined') { 
+          begindate = Date.now()
+          arbTrades[alt]['stime'] = begindate;
+          //stream.write(`${arbTrades[alt]['stime']} - ${alt} ${arbTrades[alt].crossrate} ${arbTrades[alt].minAmount} \n`)  
+        }
+
+      }
+    
+    }
+    else {
+
+      if(typeof timer !== 'undefined'){ 
+        endtimerr = console.timeEnd(alt); 
+        console.log(`${alt} lasted ${endtimer}`)
+      }
+
+      enddate = Date.now(); 
+
+      console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
+            
+      //Check if opp has closed
+      if(arbTrades[alt].crossrate >= 1) {
+        if(crossrate < arbTrades[alt].crossrate) {
+
+          stream.write(`
+            [${Date.now()}] 
+            ${alt} 
+            Profit: ${(arbTrades[alt].crossrate-1)*100} 
+            Amount: ${arbTrades[alt].minAmount} 
+            p1: ${arbTrades[alt].p1}
+            p2: ${arbTrades[alt].p2}
+            p3: ${arbTrades[alt].p3} 
+            - Open for ${(enddate-arbTrades[alt]['stime'])/1000} secs (${Math.abs(nowms - arbTrades[alt]['stime'])}ms) 
+            \n`)
+        
+        }
+      }
+    }
+
+    if(typeof arbTrades[alt]['stime'] !== 'undefined')
+      console.log(`${alt} ${nowms} ${arbTrades[alt]['stime']} ${Math.abs(nowms - arbTrades[alt]['stime'])}`)
+    
     // arbTrade array {}
     arbTrades[alt]['p1'] = pair1ask 
     arbTrades[alt]['p2'] = pair2bid
     arbTrades[alt]['p3'] = pair3ask //make independent entry, make its own function to keep track of mainpair
     arbTrades[alt]['minAmount'] = minAmount
     arbTrades[alt]['crossrate'] = crossrate
-    
-    if (crossrate >= (1 + profit)) {
-      console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.yellow.bold(crossrate_string)}`,new Date())
-      eventEmitter.emit('ArbOpp', alt)  
-    }
-    else {
-      console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
-      }  
   }
   catch(err) {
     let errmsg = err.message 
