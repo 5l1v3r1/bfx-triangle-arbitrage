@@ -83,31 +83,39 @@ ws.once('auth', async () => {
 })
 
 ws.onWalletSnapshot('', (bal) => { 
+
   var amount_currencies = bal.length;
   console.log(`-- Balances Snapshot ${Date.now()}--`)
   console.log(`${amount_currencies} currencies`)
+  
   for(var i = 0; i<amount_currencies; i++) { 
     balances[i] = bal[i]; 
     console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
   }
+  
   getBal();
+
 }) 
 
 ws.onWalletUpdate('', (bal) => { 
+  
   var amount_currencies = bal.length;
   console.log(`-- Balances Update ${Date.now()}--`)
   console.log(`${amount_currencies} currencies`)
+  
   for(var i = 0; i<amount_currencies; i++) { 
     balances[i] = bal[i]; 
     console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
   }
+  
   getBal();
+
 })
 
 /* eventEmitter listeners - internal */
 
-eventEmitter.on('closed', (symbol) => {
-
+eventEmitter.on('closed', function(symbol,opptime) {
+  console.log(chalk.yellow(`${symbol} Opportunity closed. Lasted ${opptime/1000} seconds`));
 })
 
 eventEmitter.on('ArbOpp', (symbol) => {
@@ -235,13 +243,15 @@ function reSubscribe(symbol, alt) {
 
   return new Promise((resolve,reject) => {
 
-  symbolOB[alt][symbol]['bids'] = []
-  symbolOB[alt][symbol]['asks'] = []
+  symbolOB[alt][symbol]['bids'] = [];
+  symbolOB[alt][symbol]['asks'] = [];
   
   let unsubbed = new Promise ((resolve, reject) => {
+
     ws.unsubscribeOrderBook(symbol) 
       ? resolve(console.log(`Unsubscribed from ${symbol}`)) 
       : reject(console.log(`Failed to unsubscribe from ${symbol}`))
+
   })
 
   if (unsubbed) {
@@ -267,7 +277,7 @@ function getOBs(symbol) {
   let eth = 'ETH', btc = 'BTC'
   let altID = alt.concat('ID')
   let PRECISION = "P0"
-  let count = 0;
+  let resub_trigger = 10;
   let checksumcount = []
   checksumcount[symbol] = 0;
   //Use events
@@ -277,10 +287,9 @@ function getOBs(symbol) {
         if((symbolOB[alt][alt.concat(eth)].asks || symbolOB[alt][alt.concat(btc)].bids) && symbolOB['tETH'][mainpair].asks) {
         
           if (alt !== 'tETH') {
-            //console.time("arbCalc")
             arbCalc(alt);
-            //console.timeEnd("arbCalc")
           }
+
         }
       }
     }
@@ -289,29 +298,41 @@ function getOBs(symbol) {
     // check if symbolOB has not initialized OrderBook objects for pairs
     if (ob.bids.length !== 0 && ob.asks.length !== 0) {
 
-      symbolOB[alt][symbol] = ob;
+      symbolOB[alt][symbol] = ob; //Do I need this?
       eventEmitter.emit('ob', { symbol: symbol, bids: ob.bids, asks: ob.asks });
     
     }
     
     if(ws._orderBooks[symbol].length !== 0) {
+      
       if(ws._orderBooks[symbol]["csVerified"]) {
+
         arbCalcReady()
+
       } else {
-        let counter = checksumcount[symbol];
-        counter++;
-        if(checksumcount[symbol] >= 5) {
+
+        checksumcount[symbol]++;
+
+        if(checksumcount[symbol] >= resub_trigger) {
+          
+          //Use reSubscribe function?
           let unsub = ws.unsubscribeOrderBook(symbol);
           console.log(`Unsubscribed from ${symbol}`)
+          
           if(unsub) {
+            
             ws.subscribeOrderBook(symbol);
             console.log(`Resubscribed to ${symbol}`);  
+            checksumcount[symbol] = 0;
+          
           }
+        
         }
+      
       } 
+    
     }
     
-  
   }) 
 
   console.log(chalk.bold("fetching orderbook for" ,symbol))
@@ -319,15 +340,16 @@ function getOBs(symbol) {
 }
 
 //make EventEmitter, use listeners to detect arbOpp -> .on(arbOpp) subscribeTrades -> make orders???
+
 let arbCalc = async function (alt) {
 
   let mpPre = mainpair.substring(0,4),
-   eth =  alt.concat("ETH"), 
-   btc =  alt.concat("BTC");
+      eth =  alt.concat("ETH"), 
+      btc =  alt.concat("BTC");
 
-  let ob1 = symbolOB[alt][eth];
-  let ob2 = symbolOB[alt][btc];
-  let ob3 = symbolOB[mpPre][mainpair];
+  let ob1 = symbolOB[alt][eth], 
+      ob2 = symbolOB[alt][btc], 
+      ob3 = symbolOB[mpPre][mainpair];
   
   try{
     
@@ -352,13 +374,9 @@ let arbCalc = async function (alt) {
     let makerFee = 0.1;
     let takerFee = 0.2;
     
-    // VSC git test: publish
-    if (minETHAmount*-1 < minAmount*1) // ask amounts are negative
-      minAmount = minETHAmount
-    else
-      minAmount = minAmount
-
-
+    if (minETHAmount*-1 < minAmount*1) minAmount = minETHAmount; // ask amounts are negative  
+    else minAmount = minAmount;
+      
     let nowms = Date.now();
     let timer, endtimer; //console timers
     let begindate, enddate; //Date.now() timestamps
@@ -368,20 +386,23 @@ let arbCalc = async function (alt) {
       console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.yellow.bold(crossrate_string)}`,new Date())
       eventEmitter.emit('ArbOpp', alt)  
       
-      //log to arbOpp.txt
       if(crossrate !== arbTrades[alt].crossrate) {
         
         if(typeof timer == 'undefined') {
+          
           //Start opportunity Timer
           timer = console.time(alt);
+        
         } else {
+          
           console.timeLog(alt);
         }
 
         if(typeof begindate == 'undefined') { 
-          begindate = Date.now()
+          
+          begindate = Date.now(); //Opportunity open time
           arbTrades[alt]['stime'] = begindate;
-          //stream.write(`${arbTrades[alt]['stime']} - ${alt} ${arbTrades[alt].crossrate} ${arbTrades[alt].minAmount} \n`)  
+        
         }
 
       }
@@ -390,11 +411,11 @@ let arbCalc = async function (alt) {
     else {
 
       if(typeof timer !== 'undefined'){ 
+        
         endtimerr = console.timeEnd(alt); 
         console.log(`${alt} lasted ${endtimer}`)
+      
       }
-
-      enddate = Date.now(); 
 
       if(crossrate !== arbTrades[alt].crossrate) 
        console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
@@ -402,19 +423,22 @@ let arbCalc = async function (alt) {
       //Check if opp has closed
       if(arbTrades[alt].crossrate >= 1) {
         if(crossrate < arbTrades[alt].crossrate) {
-
-          stream.write(`[${Date.now()}] ${alt} Profit: ${(arbTrades[alt].crossrate-1)*100}% Amount: ${arbTrades[alt].minAmount} p1: ${arbTrades[alt].p1} p2: ${arbTrades[alt].p2} p3: ${arbTrades[alt].p3} - Open for ${(enddate-arbTrades[alt]['stime'])/1000} secs (${Math.abs(nowms - arbTrades[alt]['stime'])}ms)\n`)
+          
+          enddate = Date.now();
+          let opptime = Math.abs(enddate - arbTrades[alt]['stime']);
+          eventEmitter.emit('closed', alt, opptime);
+          stream.write(`[${Date.now()}] ${alt} Profit: ${(arbTrades[alt].crossrate-1)*100}% Amount: ${arbTrades[alt].minAmount} p1: [${arbTrades[alt].p1}] p2: [${arbTrades[alt].p2}] p3: [${arbTrades[alt].p3}] - Open for ${(opptime/1000)} secs (${opptime}ms)\n`)
         
         }
       }
     }
 
     // arbTrade array {}
-    arbTrades[alt]['p1'] = pair1ask 
-    arbTrades[alt]['p2'] = pair2bid
-    arbTrades[alt]['p3'] = pair3ask //make independent entry, make its own function to keep track of mainpair
-    arbTrades[alt]['minAmount'] = minAmount
-    arbTrades[alt]['crossrate'] = crossrate
+    arbTrades[alt]['p1'] = pair1ask; 
+    arbTrades[alt]['p2'] = pair2bid;
+    arbTrades[alt]['p3'] = pair3ask; //make independent entry, make its own function to keep track of mainpair
+    arbTrades[alt]['minAmount'] = minAmount;
+    arbTrades[alt]['crossrate'] = crossrate;
   }
   catch(err) {
     let errmsg = err.message 
@@ -424,6 +448,7 @@ let arbCalc = async function (alt) {
 }
 
 console.log("Finished!".green)//Finished symbolOB loop
+
 ws.open()
 
 // Organize these?
