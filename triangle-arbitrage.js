@@ -54,8 +54,20 @@ const ws = bfx.ws(2,{
 if(!fs.existsSync(path.join(__dirname,"/log/arbOpp_data.txt"))) {
   stream = fs.createWriteStream(path.join(__dirname,"/log/arbOpp_data.txt"));
 } else {
-  stream = fs.createWriteStream(path.join(__dirname,"/log/arbOpp_data.txt"), {flags: 'a'});
+  stream = fs.createWriteStream(path.join(__dirname,"/log/arbOpp_data.txt"), {flags: 'a'}); //Add date to filename?
 }
+
+/** 
+ * 
+ *  Event emitters
+ * 
+ *  ws - bitfinex-api-node ws2 manager.
+ *  eventEmitter - internal event manager for triangle-arbitrage.
+ * 
+ *  Will try to develop more along this event driven approach.
+ *  TODO: Write documentation on internal eventEmitter.
+ * 
+ **/
 
 /* ws listeners - bfx-api-node */
 
@@ -115,6 +127,8 @@ ws.onWalletUpdate('', (bal) => {
 /* eventEmitter listeners - internal */
 
 eventEmitter.on('closed', function(symbol,opptime) {
+  let alt = symbol.substring(0,4);
+  arbTrades[alt]['stime'] = '';
   console.log(chalk.yellow(`${symbol} Opportunity closed. Lasted ${opptime/1000} seconds`));
 })
 
