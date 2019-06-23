@@ -5591,5 +5591,8 @@
       "resolved": "https://registry.npmjs.org/xtend/-/xtend-2.1.2.tgz",
       "version": "2.1.2"
     }
+  },
+  "scripts": {
+    "start": "node index.js"
   }
 }

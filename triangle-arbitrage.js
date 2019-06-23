@@ -20,6 +20,7 @@ const { EventEmitter } = require('events') //Internal Events
 const API_KEY = 'jZ1hZvn5dDn1rP4PrEDmY7V5ZwJ5xzzqXXgCvict0Py'
 const API_SECRET = 'IJplAkD56ljxUPOs4lJbed0XfmhFaqzIrRsYeV5CvpP'
 var fs = require('fs');
+var stream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_data.txt'), {flags: 'a'});
 
 //Pair Arrays
 //Need to use public API to update pairs automatically, filter out symbols that dont have multiple pairs to arb on.
@@ -35,7 +36,7 @@ var orderArr = [];
 var alts = [];
 var mainpair = 'tETHBTC'
 var symbols_details = [];
-var stream; //fs streams
+//var stream; //fs streams
 
 const eventEmitter = new EventEmitter(); //Internal Events i.e arbCalc emit arbOpp
 

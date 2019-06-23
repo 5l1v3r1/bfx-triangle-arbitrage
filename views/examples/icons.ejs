@@ -168,15 +168,17 @@
               <div class="card-header">
                 <h5 class="card-title">100 Awesome Nucleo Icons</h5>
                 <p class="card-category">Handcrafted by our friends from
-                  <a href="<%=stream %>"><%=stream %></a>
                 </p>
               </div>
               <div class="card-body all-icons">
                 <div id="icons-wrapper">
                   <section>
-                  <iframe src="<%=stream%>"></iframe> 
+                    <video width="320" height="240" controls>
+                        <source src="<%=stream%>" type="video/mp4">
+                    </video>
+                    <p><a href="<%=stream %>"><%=stream %></a></p>
                     <ul>  
-                    <% for (var i = 0; i <= pics.length; i++) {%>
+                    <% for (var i = 0; i <= pics.length - 1; i++) {%>
                     <% var str; %>
                     <% pics[i] >= 100 ? str = url + pics[i] + '.jpg' : str = url + '0' + pics[i] + '.jpg' %>  
                       <li>
