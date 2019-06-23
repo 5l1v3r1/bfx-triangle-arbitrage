@@ -51,12 +51,6 @@ const ws = bfx.ws(2,{
   transform: true // auto-transform array OBs to OrderBook objects
 }) 
 
-if(!fs.existsSync(path.join(__dirname,"/log/arbOpp_data.txt"))) {
-  stream = fs.createWriteStream(path.join(__dirname,"/log/arbOpp_data.txt"));
-} else {
-  stream = fs.createWriteStream(path.join(__dirname,"/log/arbOpp_data.txt"), {flags: 'a'}); //Add date to filename?
-}
-
 /** 
  * 
  *  Event emitters
@@ -124,7 +118,7 @@ ws.onWalletUpdate('', (bal) => {
 
 })
 
-/* eventEmitter listeners - internal */
+/** eventEmitter listeners - internal */
 
 eventEmitter.on('closed', function(symbol,opptime) {
   let alt = symbol.substring(0,4);
@@ -146,12 +140,16 @@ eventEmitter.on('ArbOpp', (symbol) => {
       AMOUNT > 0 ? ASKAMOUNT = (-1)*(AMOUNT) : BUYAMOUNT = AMOUNT;
       AMOUNT < 0 ? ASKAMOUNT = AMOUNT : BUYAMOUNT = (-1)*(AMOUNT);
 
-  /**---------------------------**/  
-  /**-- BACK TEST THIS FIRST! --**/
-  /**---------------------------**/
-  //Still need to add logging. to file maybe?  
-  //Initialize orderArr, 3 orders
-  //make sure ask amounts are negative
+  /** 
+   * ! BACK TEST THIS FIRST !
+   * TODO: Still need to see how reliable websocket connection is to make trades on time.
+   * ! -------------------- !
+  **/
+  
+  /** 
+   * ? Initialize orderArr, 3 orders
+   * ! make sure ask amounts are negative
+  */
   orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ASKAMOUNT, "price": arbTrades[alt].p1 };
   orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": BUYAMOUNT, "price": arbTrades[alt].p2 };
   orderArr[alt][2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
@@ -159,8 +157,14 @@ eventEmitter.on('ArbOpp', (symbol) => {
   let ordersSent = new Promise ((resolve, reject) => {
     try {   
       for(let i = 0; i <= orderArr.length; i++) {
-        //ws.submitOrder(orderArr[alt][i]);
+        
+        /**
+         * ! enable after latency tests
+         * //ws.submitOrder(orderArr[alt][i]);
+         */
+        
         console.log(`${alt} -- Submitted order ${i+1}: ${orderArr[alt][i].symbol} ${orderArr[alt][i].type} ${orderArr[alt][i].price} ${orderArr[alt][i].amount} `, new Date())
+      
       } 
       resolve();
     } catch(err) { reject(err) }
@@ -168,6 +172,13 @@ eventEmitter.on('ArbOpp', (symbol) => {
 
   ordersSent ? console.log(`${alt} Orders sent successfully `, new Date()) : console.log(`${alt} Orders failed to send `, new Date())
   return ordersSent;
+})
+
+/**
+ * ! Use this to close all current orders
+ */
+eventEmitter.on('close_orders', function() {
+
 })
 
 /* FUNCTIONS */
@@ -213,6 +224,7 @@ function subscribeOBs () {
           let btc = pre, eth = pre;
           btc += "BTC";
           eth += "ETH";
+
           // Group symbolOB into altcoin objects (symbolOB["tOMG"]) with eth & btc pairs nested
           symbolOB[pre] = {};
           symbolOB[pre]['crossrate'] = -1;
@@ -226,6 +238,7 @@ function subscribeOBs () {
           }
             
           alts.push(pre);
+        
         } 
 
         if (pair == mainpair) {
