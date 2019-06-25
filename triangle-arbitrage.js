@@ -15,12 +15,14 @@ const ansi = require ('ansicolor').nice;
 const style = require ('ansi-styles');
 const chalk = require ('chalk');
 const TimSort = require('timsort');
+var fs = require('fs');
+var api_obj = require('./apikeys.json');
 const { EventEmitter } = require('events') //Internal Events
 
-const API_KEY = 'jZ1hZvn5dDn1rP4PrEDmY7V5ZwJ5xzzqXXgCvict0Py'
-const API_SECRET = 'IJplAkD56ljxUPOs4lJbed0XfmhFaqzIrRsYeV5CvpP'
-var fs = require('fs');
 var stream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_data.txt'), {flags: 'a'});
+//var api_stream = fs.createWriteStream(path.join(__dirname,'/apikeys.json'));
+var API_KEY = api_obj.api_key;
+var API_SECRET = api_obj.api_secret;
 
 //Pair Arrays
 //Need to use public API to update pairs automatically, filter out symbols that dont have multiple pairs to arb on.
@@ -61,6 +63,7 @@ const ws = bfx.ws(2,{
  * 
  *  Will try to develop more along this event driven approach.
  *  TODO: Write documentation on internal eventEmitter.
+ *  TODO: Add console input if apikeys.json is empty. (Make internal listener)
  * 
  **/
 
@@ -79,6 +82,8 @@ ws.onMessage('', (msg) => {
 
 ws.on('open', () => {
   console.log('open')
+  console.log(`API key: ${chalk.yellow(API_KEY)} `);
+  console.log(`API secret: ${chalk.yellow(API_SECRET)} `);
   ws.auth() 
 })
 
@@ -127,6 +132,12 @@ eventEmitter.on('closed', function(symbol,opptime) {
   console.log(chalk.yellow(`${symbol} Opportunity closed. Lasted ${opptime/1000} seconds`));
 })
 
+eventEmitter.on('orderClosed', (o) =>{
+
+
+
+})
+
 eventEmitter.on('ArbOpp', (symbol) => {
   let alt = symbol.substring(0,4),
       eth = alt + 'eth',
@@ -141,45 +152,74 @@ eventEmitter.on('ArbOpp', (symbol) => {
       AMOUNT > 0 ? ASKAMOUNT = (-1)*(AMOUNT) : BUYAMOUNT = AMOUNT;
       AMOUNT < 0 ? ASKAMOUNT = AMOUNT : BUYAMOUNT = (-1)*(AMOUNT);
 
-  /** 
-   * ! BACK TEST THIS FIRST !
-   * TODO: Still need to see how reliable websocket connection is to make trades on time.
-   * ! -------------------- !
-  **/
+  let initialEthBal, finalEthBal; // Track change in balance
   
   /** 
    * ? Initialize orderArr, 3 orders
    * ! make sure ask amounts are negative
   */
-  orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ASKAMOUNT, "price": arbTrades[alt].p1 };
-  orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": BUYAMOUNT, "price": arbTrades[alt].p2 };
-  orderArr[alt][2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
+  var orders_formed = new Promise ((resolve, reject) => {
 
-  let ordersSent = new Promise ((resolve, reject) => {
-    try {   
-      for(let i = 0; i <= orderArr.length; i++) {
+    try{
+      orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ASKAMOUNT, "price": arbTrades[alt].p1 };
+      orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": BUYAMOUNT, "price": arbTrades[alt].p2 };
+      orderArr[alt][2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
+    } 
+    catch(err) {
+      reject(err);
+    }
+    resolve(`${alt} Orders formed`);
+
+  })
+  
+  var startTime = Date.now();
+
+  var orders_sent = new Promise ((resolve, reject) => {
+    try {
+      orders_formed.then(sendOrder(alt, orderArr[alt][0]))
+      .then( ws.onOrderClose(orderArr[alt][0]), function() {
+
+        console.log(`${alt} Order 1 Closed - ${orderArr[alt][0]}`);
+
+        sendOrder(alt, orderArr[alt][1])
+        .then( ws.onOrderClose(orderArr[alt][1]), function() {
+
+          console.log(`${alt} Order 2 Closed - ${orderArr[alt][2]}`);  
+
+          sendOrder(alt, orderArr[alt][2])
+          .then( ws.onOrderClose(orderArr[alt][2]), function() {
+
+            console.log(`${alt} Order 3 Closed - ${orderArr[alt][2]}`);
+          
+          })
         
-        /**
-         * ! enable after latency tests
-         * //ws.submitOrder(orderArr[alt][i]);
-         */
-        
-        console.log(`${alt} -- Submitted order ${i+1}: ${orderArr[alt][i].symbol} ${orderArr[alt][i].type} ${orderArr[alt][i].price} ${orderArr[alt][i].amount} `, new Date())
-      
-      } 
-      resolve();
-    } catch(err) { reject(err) }
+        })
+
+      })
+    }
+    catch(err) {
+      console.log(`${alt} orders_sent error ${err}`)
+      reject(err)
+    }
+    
+    resolve(`${alt} All orders closed!`); 
+
+  }) 
+  
+  orders_sent.then( function(value) {
+    
+    var endTime = Date.now();
+    console.log(`${value} took ${(endTime-startTime)/1000} seconds`);
+
   })
 
-  ordersSent ? console.log(`${alt} Orders sent successfully `, new Date()) : console.log(`${alt} Orders failed to send `, new Date())
-  return ordersSent;
 })
 
 /**
  * ! Use this to close all current orders
  */
 eventEmitter.on('close_orders', function() {
-
+  
 })
 
 /* FUNCTIONS */
@@ -473,6 +513,25 @@ let arbCalc = async function (alt) {
     //symbolOB[alt]['asks'] == undefined ? errarr = alt : errarr = p2
     console.error(alt, err)
   }
+}
+
+function sendOrder (alt,order) {
+
+  let sent_order = new Promise ((resolve, reject) => {
+
+      try {
+        ws.submitOrder(order)
+      } 
+      catch(err) {
+        console.log(`${alt} ERROR: order ${order} ${err}`);
+        reject (err);
+      }
+
+    resolve(`${alt} Order ${order} Sent! ${Date.now()}`);
+
+  })
+  console.log(`${alt} sent_order: ${sent_order}`)
+  return sent_orders; 
 }
 
 console.log("Finished!".green)//Finished symbolOB loop
