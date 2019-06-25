@@ -153,12 +153,14 @@ eventEmitter.on('ArbOpp', (symbol) => {
       AMOUNT < 0 ? ASKAMOUNT = AMOUNT : BUYAMOUNT = (-1)*(AMOUNT);
 
   let initialEthBal, finalEthBal; // Track change in balance
+  let tradingEthAmount = 0.0;
   
   /** 
    * ? Initialize orderArr, 3 orders
    * ! make sure ask amounts are negative
   */
-  var orders_formed = new Promise ((resolve, reject) => {
+  if(tradingEthAmount >= ETHAMOUNT && tradingEthAmount !== 0) {
+    var orders_formed = new Promise ((resolve, reject) => {
 
     try{
       orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ASKAMOUNT, "price": arbTrades[alt].p1 };
@@ -170,11 +172,11 @@ eventEmitter.on('ArbOpp', (symbol) => {
     }
     resolve(`${alt} Orders formed`);
 
-  })
-  
-  var startTime = Date.now();
+    })
 
-  var orders_sent = new Promise ((resolve, reject) => {
+    var startTime = Date.now();
+
+    var orders_sent = new Promise ((resolve, reject) => {
     try {
       orders_formed.then(sendOrder(alt, orderArr[alt][0]))
       .then( ws.onOrderClose(orderArr[alt][0]), function() {
@@ -196,30 +198,42 @@ eventEmitter.on('ArbOpp', (symbol) => {
         })
 
       })
+      .then(resolve(`${alt} All orders closed!`))
     }
     catch(err) {
+      eventEmitter.emit('close_orders', alt);
       console.log(`${alt} orders_sent error ${err}`)
+      console.log(`${alt} pulling all orders`)
       reject(err)
     }
-    
-    resolve(`${alt} All orders closed!`); 
-
-  }) 
   
-  orders_sent.then( function(value) {
-    
+    }) 
+
+    orders_sent.then( function(value) {
+
     var endTime = Date.now();
     console.log(`${value} took ${(endTime-startTime)/1000} seconds`);
 
-  })
+    })
+  }
+  else {
+    console.log(`${alt} Insufficient balance ${tradingEthAmount}`)
+  }
 
 })
 
 /**
  * ! Use this to close all current orders
  */
-eventEmitter.on('close_orders', function() {
+eventEmitter.on('close_orders', (alt) => {
   
+  ws.cancelOrders(orderArr[alt])
+  .then( function() {
+
+    console.log(`${alt} Orders cancelled ${Date.now()}`);
+
+  });
+
 })
 
 /* FUNCTIONS */
@@ -421,6 +435,10 @@ let arbCalc = async function (alt) {
   
   try{
     
+    /**
+     * ? Pair ask/bid structure:
+     * ? [ price, number of orders, amount ]
+     */
     let pair1ask = ob1.asks[0] //symbolOB.tOMG.tOMGETH.asks[0]
     let pair2bid = ob2.bids[0] //symbolOB.tOMG.tOMGb.bids[0]
     let pair3ask = ob3.asks[0] //Pair constraint
@@ -531,7 +549,7 @@ function sendOrder (alt,order) {
 
   })
   console.log(`${alt} sent_order: ${sent_order}`)
-  return sent_orders; 
+  return sent_order; 
 }
 
 console.log("Finished!".green)//Finished symbolOB loop
