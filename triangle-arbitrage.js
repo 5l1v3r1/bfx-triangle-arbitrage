@@ -167,9 +167,9 @@ eventEmitter.on('ArbOpp', (symbol) => {
 
   let BUYAMOUNT = setAmounts(alt);
   let ASKAMOUNT = -BUYAMOUNT;
-  let ETHAMOUNT = BUYAMOUNT * arbTrades[alt].p3[0];
+  let ETHAMOUNT = -(BUYAMOUNT * arbTrades[alt].p3[0]);
   console.log(`${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ETHAMOUNT: ${ETHAMOUNT}`)
-  
+
   /** 
    * ? Initialize orderArr, 3 orders
    * ! make sure ask amounts are negative
