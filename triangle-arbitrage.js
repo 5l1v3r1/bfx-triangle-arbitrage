@@ -10,7 +10,7 @@ const {OrderBook} = require('bfx-api-node-models')
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
 const path = require('path');
 const CRC = require('crc-32')
-
+const symbolDetails = require('./util/symbol_details')
 const log = require ('ololog').noLocate;
 const ansi = require ('ansicolor').nice;
 const style = require ('ansi-styles');
@@ -38,14 +38,12 @@ var sockets = []
 var orderArr = []; 
 var alts = [];
 var mainpair = 'tETHBTC'
-var symbols_details = [];
+var symbols_details_array = [];
 //var stream; //fs streams
 
 const eventEmitter = new EventEmitter(); //Internal Events i.e arbCalc emit arbOpp
 
 const bfx = new BFX ()
-
-const rest = new BFX ().rest
 
 const ws = bfx.ws(2,{
   apiKey: API_KEY,
@@ -152,9 +150,8 @@ eventEmitter.on('ArbOpp', (symbol) => {
       
   let initialEthBal = balances[0].balance, finalEthBal; // TODO: Track change in balance
   let tradingEthAmount = 0.02; // TODO: Enable chosen trading amount
-
+  
   let TYPE = Order.type.EXCHANGE_LIMIT;
-  let AMOUNT, ETHAMOUNT;
 /*
   arbTrades[alt].minAmount * arbTrades[alt].p1 < tradingEthAmount 
     ? AMOUNT = arbTrades[alt].minAmount // ? Amount in alt currency
@@ -168,11 +165,11 @@ eventEmitter.on('ArbOpp', (symbol) => {
       AMOUNT < 0 ? ASKAMOUNT = AMOUNT : BUYAMOUNT = (-1)*(AMOUNT);
   */
 
-  let ASKAMOUNT = arbTrades[alt].p1[0] * tradingEthAmount;
-  let BUYAMOUNT = arbTrades[alt].p2[0] * tradingEthAmount;
-  ETHAMOUNT = tradingEthAmount;
-
-  console.log(`${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT}`)
+  let BUYAMOUNT = setAmounts(alt);
+  let ASKAMOUNT = -BUYAMOUNT;
+  let ETHAMOUNT = BUYAMOUNT * arbTrades[alt].p3[0];
+  console.log(`${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ETHAMOUNT: ${ETHAMOUNT}`)
+  
   /** 
    * ? Initialize orderArr, 3 orders
    * ! make sure ask amounts are negative
@@ -260,6 +257,8 @@ function subscribeOBs () {
   
   let counter = 0
   tpairs = rv2.ethbtcpairs
+  symbols_details_array = symbolDetails.symbol_details_array;
+  console.log('SYMBOL DETAILS ARRAY',symbols_details_array)
   
   return new Promise ( (resolve, reject) => {
     
@@ -527,6 +526,7 @@ let arbCalc = async function (alt) {
     arbTrades[alt]['p3'] = pair3ask; //make independent entry, make its own function to keep track of mainpair
     arbTrades[alt]['minAmount'] = minAmount;
     arbTrades[alt]['crossrate'] = crossrate;
+    
   }
   catch(err) {
     let errmsg = err.message 
@@ -582,6 +582,20 @@ function sendOrder(alt,o) {
   })
 }
 
+function setAmounts(alt) {
+  let MAIN = 'ethbtc';
+  let arr = symbols_details_array;
+  let mainObj = filterIt(arr, MAIN); 
+  let minOrder = mainObj[0]['minimum_order_size'];
+  let amount =  minOrder / arbTrades[alt].p1[0]
+  //console.log('SET AMOUNTS: ',minOrder)
+  return amount;  
+
+}
+
+function filterIt(arr, searchKey) {
+  return arr.filter(obj => Object.keys(obj).some(key => obj[key].includes(searchKey)));
+}
 
 console.log("Finished!".green)//Finished symbolOB loop
 
