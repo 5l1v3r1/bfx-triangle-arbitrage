@@ -5,6 +5,7 @@
 const debug = require('debug')('triangle-arbitrage')
 const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const BFX = require('bitfinex-api-node')
+const { Order } = require('bfx-api-node-models')
 const {OrderBook} = require('bfx-api-node-models')
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
 const path = require('path');
@@ -24,8 +25,8 @@ var stream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_data.txt'), {
 var API_KEY = api_obj.api_key;
 var API_SECRET = api_obj.api_secret;
 
-//Pair Arrays
-//Need to use public API to update pairs automatically, filter out symbols that dont have multiple pairs to arb on.
+// Pair Arrays
+// TODO: Need to use public API to update pairs automatically, filter out symbols that dont have multiple pairs to arb on.
 
 var tpairs = []   // "tETHBTC"
 var symbolOB = [] // {bids:[], asks:[], midprice:[], lastmidprice:[]}
@@ -42,34 +43,35 @@ var symbols_details = [];
 
 const eventEmitter = new EventEmitter(); //Internal Events i.e arbCalc emit arbOpp
 
-const bfx = new BFX ({
+const bfx = new BFX ()
+
+const rest = new BFX ().rest
+
+const ws = bfx.ws(2,{
   apiKey: API_KEY,
   apiSecret: API_SECRET,
   manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
   transform: true // auto-transform array OBs to OrderBook objects
-})
-
-const ws = bfx.ws(2,{
-  manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
-  transform: true // auto-transform array OBs to OrderBook objects
 }) 
+
 
 /** 
  * 
  *  Event emitters
  * 
- *  ws - bitfinex-api-node ws2 manager.
- *  eventEmitter - internal event manager for triangle-arbitrage.
+ *  ? ws - bitfinex-api-node ws2 manager.
+ *  ? eventEmitter - internal event manager for triangle-arbitrage.
  * 
  *  Will try to develop more along this event driven approach.
  *  TODO: Write documentation on internal eventEmitter.
- *  TODO: Add console input if apikeys.json is empty. (Make internal listener)
+ *  TODO: Add console input if apikeys.json is empty. (Make internal listener) 
+ *  TODO: Handle cancelled orders in eventEmitter. (orderCancelled)
  * 
  **/
 
 /* ws listeners - bfx-api-node */
 
-// Add min/max order size check from https://api.bitfinex.com/v1/symbols_details (array)
+// TODO: Add min/max order size check from https://api.bitfinex.com/v1/symbols_details (array)
 
 ws.on('error', (err) => {
   console.log('error: %s', err)
@@ -84,7 +86,7 @@ ws.on('open', () => {
   console.log('open')
   console.log(`API key: ${chalk.yellow(API_KEY)} `);
   console.log(`API secret: ${chalk.yellow(API_SECRET)} `);
-  ws.auth() 
+  ws.auth()
 })
 
 ws.once('auth', async () => {
@@ -97,7 +99,7 @@ ws.once('auth', async () => {
 ws.onWalletSnapshot('', (bal) => { 
 
   var amount_currencies = bal.length;
-  console.log(`-- Balances Snapshot ${Date.now()}--`)
+  console.log(`\n${chalk.green('Balances Snapshot')} ${Date.now()}`)
   console.log(`${amount_currencies} currencies`)
   
   for(var i = 0; i<amount_currencies; i++) { 
@@ -105,10 +107,12 @@ ws.onWalletSnapshot('', (bal) => {
     console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
   }
   
+  console.log('\n')
   getBal();
 
 }) 
 
+/*
 ws.onWalletUpdate('', (bal) => { 
   
   var amount_currencies = bal.length;
@@ -123,6 +127,7 @@ ws.onWalletUpdate('', (bal) => {
   getBal();
 
 })
+*/
 
 /** eventEmitter listeners - internal */
 
@@ -132,7 +137,9 @@ eventEmitter.on('closed', function(symbol,opptime) {
   console.log(chalk.yellow(`${symbol} Opportunity closed. Lasted ${opptime/1000} seconds`));
 })
 
-eventEmitter.on('orderClosed', (o) =>{
+// TODO: Handle cancelled orders here
+eventEmitter.on('orderClosed', (order) =>{
+
 
 
 
@@ -140,37 +147,49 @@ eventEmitter.on('orderClosed', (o) =>{
 
 eventEmitter.on('ArbOpp', (symbol) => {
   let alt = symbol.substring(0,4),
-      eth = alt + 'eth',
-      btc = alt + 'btc',
-      GID = symbol.concat("OGID");
+      eth = alt + 'ETH',
+      btc = alt + 'BTC'; 
+      
+  let initialEthBal = balances[0].balance, finalEthBal; // TODO: Track change in balance
+  let tradingEthAmount = 0.02; // TODO: Enable chosen trading amount
 
-  let TYPE = "LIMIT", 
-      AMOUNT = arbTrades[alt].minAmount, //Amount in alt currency
-      ETHAMOUNT = arbTrades[alt].minAmount * arbTrades[alt].p3; //Amount in "ETH" or mainpair currency
+  let TYPE = Order.type.EXCHANGE_LIMIT;
+  let AMOUNT, ETHAMOUNT;
+/*
+  arbTrades[alt].minAmount * arbTrades[alt].p1 < tradingEthAmount 
+    ? AMOUNT = arbTrades[alt].minAmount // ? Amount in alt currency
+    : AMOUNT = tradingEthAmount * arbTrades[alt].p1; // ? Amount in tradingEthAmount converted to alt
+
+  ETHAMOUNT = AMOUNT * arbTrades[alt].p3; // ? Amount in "ETH" or mainpair currency
   
+  // ? Handle negative ask values
   let ASKAMOUNT, BUYAMOUNT;
       AMOUNT > 0 ? ASKAMOUNT = (-1)*(AMOUNT) : BUYAMOUNT = AMOUNT;
       AMOUNT < 0 ? ASKAMOUNT = AMOUNT : BUYAMOUNT = (-1)*(AMOUNT);
+  */
 
-  let initialEthBal, finalEthBal; // Track change in balance
-  let tradingEthAmount = 0.0;
-  
+  let ASKAMOUNT = arbTrades[alt].p1[0] * tradingEthAmount;
+  let BUYAMOUNT = arbTrades[alt].p2[0] * tradingEthAmount;
+  ETHAMOUNT = tradingEthAmount;
+
+  console.log(`${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT}`)
   /** 
    * ? Initialize orderArr, 3 orders
    * ! make sure ask amounts are negative
   */
-  if(tradingEthAmount >= ETHAMOUNT && tradingEthAmount !== 0) {
+ 
+  if(tradingEthAmount !== 0 && balances[0].balance > 0) {
+    var order1, order2, order3;
     var orders_formed = new Promise ((resolve, reject) => {
-
-    try{
-      orderArr[alt][0] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ASKAMOUNT, "price": arbTrades[alt].p1 };
-      orderArr[alt][1] = { "gid": GID, "type": TYPE, "symbol": btc, "amount": BUYAMOUNT, "price": arbTrades[alt].p2 };
-      orderArr[alt][2] = { "gid": GID, "type": TYPE, "symbol": eth, "amount": ETHAMOUNT, "price": arbTrades[alt].p3 };
-    } 
-    catch(err) {
-      reject(err);
-    }
-    resolve(`${alt} Orders formed`);
+      try{
+        order1 = new Order({ cid: Date.now()+"_1", symbol: eth, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        order2 = new Order({ cid: Date.now()+"_2", symbol: btc, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        order3 = new Order({ cid: Date.now()+"_3", symbol: 'tETHBTC', price: arbTrades[alt].p3[0], amount: ETHAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        resolve(`${alt} Orders formed`);
+      } 
+      catch(err) {
+        reject(err);
+      }
 
     })
 
@@ -178,32 +197,16 @@ eventEmitter.on('ArbOpp', (symbol) => {
 
     var orders_sent = new Promise ((resolve, reject) => {
     try {
-      orders_formed.then(sendOrder(alt, orderArr[alt][0]))
-      .then( ws.onOrderClose(orderArr[alt][0]), function() {
-
-        console.log(`${alt} Order 1 Closed - ${orderArr[alt][0]}`);
-
-        sendOrder(alt, orderArr[alt][1])
-        .then( ws.onOrderClose(orderArr[alt][1]), function() {
-
-          console.log(`${alt} Order 2 Closed - ${orderArr[alt][2]}`);  
-
-          sendOrder(alt, orderArr[alt][2])
-          .then( ws.onOrderClose(orderArr[alt][2]), function() {
-
-            console.log(`${alt} Order 3 Closed - ${orderArr[alt][2]}`);
-          
-          })
-        
-        })
-
+      orders_formed.then(sendOrder(alt, order1) )
+      .then(sendOrder(alt, order2))
+      .then(sendOrder(alt, order3))
+      .then(resolve(`${alt} All orders closed!`)).catch((err) => {
+        console.log(err);
       })
-      .then(resolve(`${alt} All orders closed!`))
     }
     catch(err) {
-      eventEmitter.emit('close_orders', alt);
+      //eventEmitter.emit('cancel_orders', alt);
       console.log(`${alt} orders_sent error ${err}`)
-      console.log(`${alt} pulling all orders`)
       reject(err)
     }
   
@@ -213,33 +216,32 @@ eventEmitter.on('ArbOpp', (symbol) => {
 
     var endTime = Date.now();
     console.log(`${value} took ${(endTime-startTime)/1000} seconds`);
+    getBal();
 
     })
   }
   else {
-    console.log(`${alt} Insufficient balance ${tradingEthAmount}`)
+    console.log(`${alt} Insufficient balance. Trading Balance: ${tradingEthAmount} Minimum Balance: ${arbTrades[alt].minAmount}`)
   }
 
 })
 
-/**
- * ! Use this to close all current orders
- */
-eventEmitter.on('close_orders', (alt) => {
-  
-  ws.cancelOrders(orderArr[alt])
-  .then( function() {
+// ! Use this to close all orders
+eventEmitter.on('cancel_orders', (alt) => {
+  for(var i = 0; i <= orderArr[alt].length; i++) { 
+   orderArr[alt].cancel()
+   .then( function() {
 
-    console.log(`${alt} Orders cancelled ${Date.now()}`);
+     console.log(`${alt} Orders cancelled ${Date.now()}`);
 
-  });
-
+   });
+  }
 })
 
 /* FUNCTIONS */
 
 async function getBal () {
-  console.log(balances)
+  //console.log(balances)
   module.exports.balances = balances;
   return balances;
 }
@@ -533,24 +535,53 @@ let arbCalc = async function (alt) {
   }
 }
 
-function sendOrder (alt,order) {
+function sendOrder(alt,o) {
+  let closed = false
+  // Enable automatic updates
+  o.registerListeners()
 
-  let sent_order = new Promise ((resolve, reject) => {
-
-      try {
-        ws.submitOrder(order)
-      } 
-      catch(err) {
-        console.log(`${alt} ERROR: order ${order} ${err}`);
-        reject (err);
-      }
-
-    resolve(`${alt} Order ${order} Sent! ${Date.now()}`);
-
+  o.on('update', () => {
+    console.log(' %s order updated: %j',alt, o.serialize())
   })
-  console.log(`${alt} sent_order: ${sent_order}`)
-  return sent_order; 
+
+  o.on('close', () => {
+    console.log(' %s order closed: %s',alt, o.status)
+    closed = true;
+    return Promise.resolve('Order closed');
+  })
+
+  o.on('cancelled', () => {
+    console.log(' %s order cancelled: %s',alt, o.status)
+    closed = false;
+    return Promise.reject('Order cancelled')
+  })
+
+  console.log(' %s submitting order %s',alt, o.cid)
+
+  o.submit().then(() => {
+    console.log(' %s got submit confirmation for order %s [%s]',alt, o.cid, o.id)
+
+    // wait a bit...
+    setTimeout(() => {
+      if (closed) return Promise.resolve('Order Closed')
+
+      console.log(' %s canceling order %s...',alt)
+
+      o.cancel().then(() => {
+        console.log(' %s got cancel confirmation for order %s',alt, o.cid)
+        return Promise.reject('Order cancelled')
+        //ws.close()
+      }).catch((err) => {
+        console.log(' %s error cancelling order: %j',alt, err)
+        ws.close()
+      })
+    }, 2000)
+  }).catch((err) => {
+    console.log(alt,err)
+    ws.close()
+  })
 }
+
 
 console.log("Finished!".green)//Finished symbolOB loop
 
