@@ -1423,6 +1423,7 @@
       "version": "3.1.9-1"
     },
     "cryptocurrency-icons": "^0.13.0",
+    "csvtojson": "^2.0.10",
     "currently-unhandled": {
       "integrity": "sha1-mI3zP+qxke95mmE2nddsF635V+o=",
       "requires": {

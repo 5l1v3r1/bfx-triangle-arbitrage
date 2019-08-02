@@ -72,12 +72,11 @@ const ws = bfx.ws(2,{
 // TODO: Add min/max order size check from https://api.bitfinex.com/v1/symbols_details (array)
 
 ws.on('error', (err) => {
-  console.log('error: %s', err)
+  console.error('error: %s', err)
 })
 
 ws.onMessage('', (msg) => {
-  //msg = chalk.yellow(msg)
-  //console.log(msg)
+
 })
 
 ws.on('open', () => {
@@ -110,23 +109,6 @@ ws.onWalletSnapshot('', (bal) => {
 
 }) 
 
-/*
-ws.onWalletUpdate('', (bal) => { 
-  
-  var amount_currencies = bal.length;
-  console.log(`-- Balances Update ${Date.now()}--`)
-  console.log(`${amount_currencies} currencies`)
-  
-  for(var i = 0; i<amount_currencies; i++) { 
-    balances[i] = bal[i]; 
-    console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
-  }
-  
-  getBal();
-
-})
-*/
-
 /** eventEmitter listeners - internal */
 
 eventEmitter.on('closed', function(symbol,opptime) {
@@ -138,12 +120,10 @@ eventEmitter.on('closed', function(symbol,opptime) {
 // TODO: Handle cancelled orders here
 eventEmitter.on('orderClosed', (order) =>{
 
-
-
-
 })
 
 eventEmitter.on('ArbOpp', (symbol) => {
+  
   let alt = symbol.substring(0,4),
       eth = alt + 'ETH',
       btc = alt + 'BTC'; 
@@ -152,27 +132,19 @@ eventEmitter.on('ArbOpp', (symbol) => {
   let tradingEthAmount = 0.02; // TODO: Enable chosen trading amount
   
   let TYPE = Order.type.EXCHANGE_LIMIT;
-/*
-  arbTrades[alt].minAmount * arbTrades[alt].p1 < tradingEthAmount 
-    ? AMOUNT = arbTrades[alt].minAmount // ? Amount in alt currency
-    : AMOUNT = tradingEthAmount * arbTrades[alt].p1; // ? Amount in tradingEthAmount converted to alt
-
-  ETHAMOUNT = AMOUNT * arbTrades[alt].p3; // ? Amount in "ETH" or mainpair currency
+  let AMOUNT = setAmounts(alt)
+  console.log(arbTrades[alt].p3)
+  let ASKAMOUNT = AMOUNT * -1; //Amount of ALT to buy (negative)
+  let BUYAMOUNT = AMOUNT; //Amount of ALT to sell (for BTC)
+  let ETHAMOUNT = -( ((BUYAMOUNT/arbTrades[alt].p1[0]) * arbTrades[alt].p2[0]) / arbTrades[alt].p3[0] ); // Amount of ETH to buy (negative), will be more than original amount.
   
-  // ? Handle negative ask values
-  let ASKAMOUNT, BUYAMOUNT;
-      AMOUNT > 0 ? ASKAMOUNT = (-1)*(AMOUNT) : BUYAMOUNT = AMOUNT;
-      AMOUNT < 0 ? ASKAMOUNT = AMOUNT : BUYAMOUNT = (-1)*(AMOUNT);
-  */
-
-  let BUYAMOUNT = setAmounts(alt);
-  let ASKAMOUNT = -BUYAMOUNT;
-  let ETHAMOUNT = -(BUYAMOUNT * arbTrades[alt].p3[0]);
-  console.log(`${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ETHAMOUNT: ${ETHAMOUNT}`)
+  console.log(`\n${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ETHAMOUNT: ${ETHAMOUNT}`)
+  console.log(`${chalk.yellow('Profit amount (ETH):')} ${chalk.yellow(ETHAMOUNT - AMOUNT)}`)
 
   /** 
    * ? Initialize orderArr, 3 orders
-   * ! make sure ask amounts are negative
+   * ! make sure ask amounts are negative 
+   * ! ADD FEES TO AMOUNTS
   */
  
   if(tradingEthAmount !== 0 && balances[0].balance > 0) {
@@ -181,7 +153,7 @@ eventEmitter.on('ArbOpp', (symbol) => {
       try{
         order1 = new Order({ cid: Date.now()+"_1", symbol: eth, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
         order2 = new Order({ cid: Date.now()+"_2", symbol: btc, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-        order3 = new Order({ cid: Date.now()+"_3", symbol: 'tETHBTC', price: arbTrades[alt].p3[0], amount: ETHAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        order3 = new Order({ cid: Date.now()+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ETHAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
         resolve(`${alt} Orders formed`);
       } 
       catch(err) {
@@ -235,7 +207,18 @@ eventEmitter.on('cancel_orders', (alt) => {
   }
 })
 
+eventEmitter.on('mainpair', (selectedpair) => {
+
+  mainpair = selectedpair;
+
+})
+
 /* FUNCTIONS */
+
+function MainPair (mainpair) {
+  if(mainpair == 'tETHBTC') tpairs = rv2.ethbtcpairs;
+  if(mainpair == 'tUSDBTC') tpairs = rv2.usdbtcpairs;
+}
 
 async function getBal () {
   //console.log(balances)
@@ -256,7 +239,7 @@ console.timeEnd("getOBLoop - forEach")
 function subscribeOBs () {
   
   let counter = 0
-  tpairs = rv2.ethbtcpairs
+  tpairs = rv2.ethbtcpairs //refactor to account for mainpair
   symbols_details_array = symbolDetails.symbol_details_array;
   console.log('SYMBOL DETAILS ARRAY',symbols_details_array)
   
@@ -311,7 +294,8 @@ function subscribeOBs () {
 
       }
     }); 
-  alts.push("tETHBTC");
+
+  alts.push(mainpair);
   console.timeEnd("subscribeOBs - tpairs.forEach");
   console.log(chalk.green("--DONE--"))
   console.log("Subscribed to %d out of %d", counter, tpairs.length)
@@ -363,6 +347,7 @@ function getOBs(symbol) {
   let resub_trigger = 10;
   let checksumcount = []
   checksumcount[symbol] = 0;
+  
   //Use events
   let arbCalcReady = function() {
     if(symbolOB[alt][alt.concat(eth)] && symbolOB[alt][alt.concat(btc)] && symbolOB['tETH'][mainpair]) { 
@@ -440,6 +425,7 @@ let arbCalc = async function (alt) {
      * ? Pair ask/bid structure:
      * ? [ price, number of orders, amount ]
      */
+    
     let pair1ask = ob1.asks[0] //symbolOB.tOMG.tOMGETH.asks[0]
     let pair2bid = ob2.bids[0] //symbolOB.tOMG.tOMGb.bids[0]
     let pair3ask = ob3.asks[0] //Pair constraint
@@ -471,10 +457,17 @@ let arbCalc = async function (alt) {
     if (crossrate >= (1 + profit)) {
       
       console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.yellow.bold(crossrate_string)}`,new Date())
+     
+      // arbTrade array {}
+      arbTrades[alt]['p1'] = pair1ask; 
+      arbTrades[alt]['p2'] = pair2bid;
+      arbTrades[alt]['p3'] = pair3ask; //make independent entry, make its own function to keep track of mainpair
+      arbTrades[alt]['minAmount'] = minAmount;
+      
       eventEmitter.emit('ArbOpp', alt)  
       
       if(crossrate !== arbTrades[alt].crossrate) {
-        
+
         if(typeof timer == 'undefined') {
           
           //Start opportunity Timer
@@ -518,14 +511,14 @@ let arbCalc = async function (alt) {
         
         }
       }
+      
+      // arbTrade array {}
+      arbTrades[alt]['p1'] = pair1ask; 
+      arbTrades[alt]['p2'] = pair2bid;
+      arbTrades[alt]['p3'] = pair3ask; //make independent entry, make its own function to keep track of mainpair
+      arbTrades[alt]['minAmount'] = minAmount;
+      arbTrades[alt]['crossrate'] = crossrate;
     }
-
-    // arbTrade array {}
-    arbTrades[alt]['p1'] = pair1ask; 
-    arbTrades[alt]['p2'] = pair2bid;
-    arbTrades[alt]['p3'] = pair3ask; //make independent entry, make its own function to keep track of mainpair
-    arbTrades[alt]['minAmount'] = minAmount;
-    arbTrades[alt]['crossrate'] = crossrate;
     
   }
   catch(err) {
@@ -537,6 +530,7 @@ let arbCalc = async function (alt) {
 
 function sendOrder(alt,o) {
   let closed = false
+  
   // Enable automatic updates
   o.registerListeners()
 
@@ -590,7 +584,6 @@ function setAmounts(alt) {
   let amount =  minOrder / arbTrades[alt].p1[0]
   //console.log('SET AMOUNTS: ',minOrder)
   return amount;  
-
 }
 
 function filterIt(arr, searchKey) {

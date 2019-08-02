@@ -15,7 +15,7 @@ request.get(url, function(err, response, body) {
             'maximum_order_size': json[i]['maximum_order_size'],
             'minimum_order_size': json[i]['minimum_order_size'] 
         }
-        console.log(symbol_details_array[i]['pair'], symbol_details_array[i]['minimum_order_size'])
+        //console.log(symbol_details_array[i]['pair'], symbol_details_array[i]['minimum_order_size'])
 
     }
     console.log(`EXPORTED SYMBOL DETAILS\n`)

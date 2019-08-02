@@ -173,22 +173,23 @@
               <div class="card-body all-icons">
                 <div id="icons-wrapper">
                   <section>
+                    <% for (var j = 1; j <= obj.length - 1; j++) {%>
                     <video width="320" height="240" controls>
-                        <source src="<%=stream%>" type="video/mp4">
+                        <source src="<%=obj[j].stream%>" type="video/mp4">
                     </video>
-                    <p><a href="<%=stream %>"><%=stream %></a></p>
+                    <p><a href="<%=obj[j].stream %>"><%=obj[j].stream %></a></p>
                     <ul>  
-                    <% for (var i = 0; i <= pics.length - 1; i++) {%>
+                    <% for (var i = 0; i <= 6 - 1; i++) {%>
                     <% var str; %>
-                    <% pics[i] >= 100 ? str = url + pics[i] + '.jpg' : str = url + '0' + pics[i] + '.jpg' %>  
+                    <% obj[j].pics[i] >= 100 ? str = obj[j].url + obj[j].pics[i] + '.jpg' : str = obj[j].url + '0' + obj[j].pics[i] + '.jpg' %>  
                       <li>
                         <a href="<%= str %>"><img src="<%= str%>"></a>
-                        <p><%=pics[i] + '.jpg'%></p>
+                        <p><%=obj[j].pics[i] + '.jpg'%></p>
                       </li>
                       <!-- list of icons here with the proper class-->
                     <% } %>
                    </ul>
-                   
+                   <% } %>
                   </section>
                 </div>
               </div>
