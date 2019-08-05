@@ -22,24 +22,23 @@ const { EventEmitter } = require('events') //Internal Events
 
 var stream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_data.txt'), {flags: 'a'});
 //var api_stream = fs.createWriteStream(path.join(__dirname,'/apikeys.json'));
-var API_KEY = api_obj.api_key;
-var API_SECRET = api_obj.api_secret;
+var API_KEY = api_obj.test.api_key;
+var API_SECRET = api_obj.test.api_secret;
 
 // Pair Arrays
 // TODO: Need to use public API to update pairs automatically, filter out symbols that dont have multiple pairs to arb on.
 
-var tpairs = []   // "tETHBTC"
-var symbolOB = [] // {bids:[], asks:[], midprice:[], lastmidprice:[]}
-var arbTrades = {} // {p1:[], p2:[], p3:[], minAmount:[]}
-var balances = []
-var triArray = []
-var wsArray = []
-var sockets = []
+var tpairs = [];   // "tETHBTC"
+var symbolOB = []; // {bids:[], asks:[], midprice:[], lastmidprice:[]}
+var arbTrades = {}; // {p1:[], p2:[], p3:[], minAmount:[]}
+var balances = [];
+var triArray = [];
+var wsArray = [];
+var sockets = [];
 var orderArr = []; 
 var alts = [];
-var mainpair = 'tETHBTC'
+var mainpair = 'tETHBTC';
 var symbols_details_array = [];
-//var stream; //fs streams
 
 const eventEmitter = new EventEmitter(); //Internal Events i.e arbCalc emit arbOpp
 
