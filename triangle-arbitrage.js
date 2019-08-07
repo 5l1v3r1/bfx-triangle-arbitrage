@@ -27,10 +27,9 @@ var API_SECRET = api_obj.test.api_secret;
 
 // Pair Arrays
 // TODO: Need to use public API to update pairs automatically, filter out symbols that dont have multiple pairs to arb on.
-
-var tpairs = [];   // "tETHBTC"
-var symbolOB = []; // {bids:[], asks:[], midprice:[], lastmidprice:[]}
-var arbTrades = {}; // {p1:[], p2:[], p3:[], minAmount:[]}
+var tpairs = [];   // ? "tETHBTC"
+var symbolOB = []; // ? {bids:[], asks:[], midprice:[], lastmidprice:[]}
+var arbTrades = {}; // ? {p1:[], p2:[], p3:[], minAmount:[]}
 var balances = [];
 var triArray = [];
 var wsArray = [];
@@ -40,7 +39,7 @@ var alts = [];
 var mainpair = 'tETHBTC';
 var symbols_details_array = [];
 
-const eventEmitter = new EventEmitter(); //Internal Events i.e arbCalc emit arbOpp
+const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit arbOpp
 
 const bfx = new BFX ()
 
@@ -93,11 +92,10 @@ ws.once('auth', async () => {
 })
 
 ws.onWalletSnapshot('', (bal) => { 
-
   var amount_currencies = bal.length;
   console.log(`\n${chalk.green('Balances Snapshot')} ${Date.now()}`)
   console.log(`${amount_currencies} currencies`)
-  
+
   for(var i = 0; i<amount_currencies; i++) { 
     balances[i] = bal[i]; 
     console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
@@ -105,7 +103,6 @@ ws.onWalletSnapshot('', (bal) => {
   
   console.log('\n')
   getBal();
-
 }) 
 
 /** eventEmitter listeners - internal */
@@ -121,11 +118,13 @@ eventEmitter.on('orderClosed', (order) =>{
 
 })
 
+// ? Arbitrage Opportunity listener
 eventEmitter.on('ArbOpp', (symbol) => {
-  
   let alt = symbol.substring(0,4),
       eth = alt + 'ETH',
       btc = alt + 'BTC'; 
+  
+  let isStaging = false; // ! Set to true for stagin
       
   let initialEthBal = balances[0].balance, finalEthBal; // TODO: Track change in balance
   let tradingEthAmount = 0.02; // TODO: Enable chosen trading amount
@@ -145,8 +144,8 @@ eventEmitter.on('ArbOpp', (symbol) => {
    * ! make sure ask amounts are negative 
    * ! ADD FEES TO AMOUNTS
   */
- 
-  if(tradingEthAmount !== 0 && balances[0].balance > 0) {
+  if(isStaging) {
+    if(tradingEthAmount !== 0 && balances[0].balance > 0) {
     var order1, order2, order3;
     var orders_formed = new Promise ((resolve, reject) => {
       try{
@@ -187,9 +186,10 @@ eventEmitter.on('ArbOpp', (symbol) => {
     getBal();
 
     })
-  }
-  else {
-    console.log(`${alt} Insufficient balance. Trading Balance: ${tradingEthAmount} Minimum Balance: ${arbTrades[alt].minAmount}`)
+    }
+    else {
+      console.log(`${alt} Insufficient balance. Trading Balance: ${tradingEthAmount} Minimum Balance: ${arbTrades[alt].minAmount}`)
+    }
   }
 
 })
