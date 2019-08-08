@@ -234,27 +234,29 @@ async function getBal () {
 }
 
 function getOBLoop () {
-console.time("getOBLoop - forEach")
+  console.time("getOBLoop - forEach")
+  console.log(`Getting OrderBooks: tpairs ${tpairs.length}`)
   tpairs.forEach( async (symbol) => { 
 
     getOBs(symbol);
 
   })
-console.timeEnd("getOBLoop - forEach")
+  console.timeEnd("getOBLoop - forEach")
 }
 
 function subscribeOBs () {
   
   let counter = 0
   tpairs = rv2.ethbtcpairs //refactor to account for mainpair
+  tpairs = tpairs.slice(-61); // ! change to number under limit MUST BE INCLUSIVE TO SYMBOL PAIRINGS
+  console.log(`tpairs length = ${tpairs.length}`)
   symbols_details_array = symbolDetails.symbol_details_array;
   console.log('SYMBOL DETAILS ARRAY',symbols_details_array)
   
   return new Promise ( (resolve, reject) => {
     
     console.time("subscribeOBs - tpairs.forEach");
-    //? remove last 120 pairs?
-    tpairs.slice(-30).forEach ( (pair) => {
+    tpairs.forEach ( (pair) => {
 
       let pre = pair.substring(0,4); //prestring e.g "tOMG"
       let suf = pair.substring(4); // suffix e.g "ETH"
