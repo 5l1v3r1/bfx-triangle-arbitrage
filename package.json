@@ -3609,6 +3609,7 @@
       "resolved": "https://registry.npmjs.org/onetime/-/onetime-2.0.1.tgz",
       "version": "2.0.1"
     },
+    "open": "^6.4.0",
     "opencollective": {
       "dependencies": {
         "node-fetch": {

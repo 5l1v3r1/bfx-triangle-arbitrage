@@ -8,6 +8,7 @@ const tri_arb = require('./triangle-arbitrage.js')
 const mongoose = require('mongoose');
 var fs = require('fs');
 var stream = fs.createWriteStream(path.join(__dirname,"/log/ob_data.txt"))
+var open = require('open');
 
 var eventEmitter = tri_arb.emitter;
 var triArray = tri_arb.triArray;
@@ -63,15 +64,18 @@ app.get('/icons', (req, res) => {
     });
   
 });
-var port = process.env.PORT;
-const server = app.listen(port, () => {
-
-    console.log(`Express running → PORT ${server.address().port}`);
+var PORT = 7000;
+const server = app.listen(PORT, () => {
+    var port = PORT;
+    console.log(`Express running → PORT ${port}`);
     console.log(`http:localhost:${port}`)
+    var url = `http:localhost:${port}`;
+    open(url);
 
 })
 
 var io = require('socket.io').listen(server);
+
 
 io.sockets.on('connection', function (socket) {
     
