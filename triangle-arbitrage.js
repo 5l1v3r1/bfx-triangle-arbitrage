@@ -253,7 +253,8 @@ function subscribeOBs () {
   return new Promise ( (resolve, reject) => {
     
     console.time("subscribeOBs - tpairs.forEach");
-    tpairs.forEach ( (pair) => {
+    //? remove last 120 pairs?
+    tpairs.slice(-30).forEach ( (pair) => {
 
       let pre = pair.substring(0,4); //prestring e.g "tOMG"
       let suf = pair.substring(4); // suffix e.g "ETH"
@@ -596,6 +597,21 @@ function setAmounts(alt) {
 function filterIt(arr, searchKey) {
   return arr.filter(obj => Object.keys(obj).some(key => obj[key].includes(searchKey)));
 }
+
+// Process functions
+
+process.on('SIGINT', async function() {
+  // ! send unsubscribe to pairs
+  console.log('Doing clean-up.')
+  console.log(`unsubscribing from pairs`)
+
+  await tpairs.forEach((pair) => {
+    var unsub = ws.unsubscribeOrderBook(pair);
+    if(unsub) console.log(`unsubscribed from ${pair}`)
+  })
+
+  process.exit();
+});
 
 console.log("Finished!".green)//Finished symbolOB loop
 
