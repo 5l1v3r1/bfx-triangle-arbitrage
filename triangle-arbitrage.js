@@ -39,6 +39,8 @@ var alts = [];
 var mainpair = 'tETHBTC';
 var symbols_details_array = [];
 
+var error_counts = [];
+
 const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit arbOpp
 
 const bfx = new BFX ()
@@ -68,9 +70,15 @@ const ws = bfx.ws(2,{
 /* ws listeners - bfx-api-node */
 
 // TODO: Add min/max order size check from https://api.bitfinex.com/v1/symbols_details (array)
+var errcounter = 0;
 
 ws.on('error', (err) => {
-  console.error('error: %s', err)
+  if(err.code == 10305) {
+    errcounter++;
+    console.error(`${err.event} ${errcounter}: ${err.code} "${err.pair}" "${err.msg}"`)
+  } 
+  else console.error('error: %s', err)
+  
 })
 
 ws.onMessage('', (msg) => {
@@ -102,7 +110,7 @@ ws.onWalletSnapshot('', (bal) => {
   }
   
   console.log('\n')
-  getBal();
+  //getBal();
 }) 
 
 /** eventEmitter listeners - internal */
