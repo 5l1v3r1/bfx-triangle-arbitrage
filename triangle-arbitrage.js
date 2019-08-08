@@ -602,14 +602,15 @@ function filterIt(arr, searchKey) {
 
 process.on('SIGINT', async function() {
   // ! send unsubscribe to pairs
-  console.log('Doing clean-up.')
-  console.log(`unsubscribing from pairs`)
+  console.log('SIGINT - Doing clean-up.')
 
+  console.log(`unsubscribing from pairs`.red)
   await tpairs.forEach((pair) => {
     var unsub = ws.unsubscribeOrderBook(pair);
     if(unsub) console.log(`unsubscribed from ${pair}`)
   })
 
+  console.log('Done.')
   process.exit();
 });
 
