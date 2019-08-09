@@ -14,7 +14,11 @@ var eventEmitter = tri_arb.emitter;
 var triArray = tri_arb.triArray;
 var alts = tri_arb.alts;
 var pairs = tri_arb.tpairs;
-var bal;
+var _balances;
+
+var PORT = 7000;
+var url = `http:localhost:${PORT}`;
+
 
 /*  Try logging to file first
 mongoose.connect('mongodb://localhost/orderbookdb', function(err){
@@ -49,7 +53,7 @@ app.get('/', (req, res) => {
     
     res.render('examples/dashboard', 
     {   
-        balances: tri_arb.balances,
+        balances: _balances,
         symbols: pairs,
         alts: alts
     }); 
@@ -64,26 +68,28 @@ app.get('/icons', (req, res) => {
     });
   
 });
-var PORT = 7000;
-const server = app.listen(PORT, async function (){
-    var port = PORT;
-    console.log(`Express running → PORT ${port}`);
-    console.log(`http:localhost:${port}`)
-    var url = `http:localhost:${port}`;
-    open(url);
 
+const server = app.listen(PORT, async function (){
+    var port = PORT;    
+    console.log(`Express running → PORT ${port}`);
+    console.log(`${url}`)
 })
 
 var io = require('socket.io').listen(server);
 
-
 io.sockets.on('connection', function (socket) {
-    
+
     console.log('User connected');
     socket.emit('message', { text: 'You have connected'});
+    
     socket.on('disconnect', function () {
         console.log('User disconnected');
     });
+
+    socket.on('test', () => {
+        console.log('test listener')
+    })
+    
     eventEmitter.on('ob', function (ob) {
         socket.emit('ob', { symbol: ob.symbol, bids: ob.bids, asks: ob.asks })
        // stream.write(`${Date.now()} ${ob.symbol} ${ob.bids[0]} ${ob.asks[0]} \n`);
@@ -91,3 +97,8 @@ io.sockets.on('connection', function (socket) {
             
 })
 
+eventEmitter.on('pulledBal', (bal) => {
+    console.log(bal.length);
+    _balances = bal;
+    open(url);
+})

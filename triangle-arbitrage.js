@@ -105,6 +105,7 @@ ws.once('auth', async () => {
 
 ws.onWalletSnapshot('', (bal) => { 
   var amount_currencies = bal.length;
+  if (amount_currencies > 0) eventEmitter.emit('pulledBal', bal);
   console.log(`\n${chalk.green('Balances Snapshot')} ${Date.now()}`)
   console.log(`${amount_currencies} currencies`)
 
@@ -112,7 +113,7 @@ ws.onWalletSnapshot('', (bal) => {
     balances[i] = bal[i]; 
     console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
   }
-  
+
   console.log('\n')
   getBal();
 }) 
