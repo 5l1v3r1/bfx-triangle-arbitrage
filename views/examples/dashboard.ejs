@@ -50,7 +50,8 @@
             if(alt == 'ETH'){
               document.getElementById(mainask).innerHTML = ob_array[symbolId]['asks'][0][0];
             }
-        
+
+            if(typeof balances !== 'undefined') socket.emit('GotBal');
           })
           //match pair to arbTrades pair
           

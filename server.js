@@ -14,7 +14,7 @@ var eventEmitter = tri_arb.emitter;
 var triArray = tri_arb.triArray;
 var alts = tri_arb.alts;
 var pairs = tri_arb.tpairs;
-
+var bal;
 
 /*  Try logging to file first
 mongoose.connect('mongodb://localhost/orderbookdb', function(err){
@@ -53,7 +53,7 @@ app.get('/', (req, res) => {
         symbols: pairs,
         alts: alts
     }); 
-  
+    
 });
 
 app.get('/icons', (req, res) => {
@@ -65,7 +65,7 @@ app.get('/icons', (req, res) => {
   
 });
 var PORT = 7000;
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async function (){
     var port = PORT;
     console.log(`Express running → PORT ${port}`);
     console.log(`http:localhost:${port}`)
