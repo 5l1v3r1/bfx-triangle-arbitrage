@@ -73,10 +73,14 @@ const ws = bfx.ws(2,{
 var errcounter = 0;
 
 ws.on('error', (err) => {
+
   if(err.code == 10305) {
     errcounter++;
     console.error(`${err.event} ${errcounter}: ${err.code} "${err.pair}" "${err.msg}"`)
-  } 
+  }
+  if(!err.message) {
+    console.error(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`) // TODO: Log these errors.
+  }
   else console.error('error: %s', err)
   
 })
@@ -110,7 +114,7 @@ ws.onWalletSnapshot('', (bal) => {
   }
   
   console.log('\n')
-  //getBal();
+  getBal();
 }) 
 
 /** eventEmitter listeners - internal */
