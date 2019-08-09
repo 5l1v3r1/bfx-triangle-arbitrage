@@ -54,6 +54,20 @@ const ws = bfx.ws(2,{
   transform: true // auto-transform array OBs to OrderBook objects
 }) 
 
+/**
+ * 
+ * 
+ *  Process Arguments
+ * 
+ *  TODO: Add argument definitions
+ * ? disable verbose mode (logging of errors): [ -v ] (on by defualt)
+ * ? asdasdasdasd
+ * 
+ * 
+ */
+
+
+
 
 /** 
  * 
@@ -75,17 +89,17 @@ const ws = bfx.ws(2,{
 var errcounter = 0;
 
 ws.on('error', (err) => {
-
-  if(err.code == 10305) {
-    errcounter++;
-    console.error(`${err.event} ${errcounter}: ${err.code} "${err.pair}" "${err.msg}"`)
+  if (process.argv[2] !== '-v') {
+    if(err.code == 10305) {
+      errcounter++;
+      console.error(`${err.event} ${errcounter}: ${err.code} "${err.pair}" "${err.msg}"`)
+    }
+    if(!err.message) {
+      console.error(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`); 
+      errlog.write(`${err.event}: ${err.code} "${err.pair}" "${err.msg}" \n`);
+    }
+    else console.error('error: %s', err)
   }
-  if(!err.message) {
-    console.error(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`); 
-    errlog.write(`${err.event}: ${err.code} "${err.pair}" "${err.msg}" \n`);
-  }
-  else console.error('error: %s', err)
-  
 })
 
 ws.onMessage('', (msg) => {
