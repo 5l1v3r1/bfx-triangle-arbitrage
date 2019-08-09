@@ -20,7 +20,9 @@ var fs = require('fs');
 var api_obj = require('./apikeys.json');
 const { EventEmitter } = require('events') //Internal Events
 
-var stream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_data.txt'), {flags: 'a'});
+var stream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_data.txt'), {flags: 'a'}); // ? Data stream
+var errlog = fs.createWriteStream(path.join(__dirname,"/log/ws_errors.txt"), {flags: 'a'}); // ? Websocket error logging
+
 //var api_stream = fs.createWriteStream(path.join(__dirname,'/apikeys.json'));
 var API_KEY = api_obj.test.api_key;
 var API_SECRET = api_obj.test.api_secret;
@@ -79,7 +81,8 @@ ws.on('error', (err) => {
     console.error(`${err.event} ${errcounter}: ${err.code} "${err.pair}" "${err.msg}"`)
   }
   if(!err.message) {
-    console.error(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`) // TODO: Log these errors.
+    console.error(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`); 
+    errlog.write(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`);
   }
   else console.error('error: %s', err)
   
