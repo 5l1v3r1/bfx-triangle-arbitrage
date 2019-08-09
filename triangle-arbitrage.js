@@ -82,7 +82,7 @@ ws.on('error', (err) => {
   }
   if(!err.message) {
     console.error(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`); 
-    errlog.write(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`);
+    errlog.write(`${err.event}: ${err.code} "${err.pair}" "${err.msg}" \n`);
   }
   else console.error('error: %s', err)
   
