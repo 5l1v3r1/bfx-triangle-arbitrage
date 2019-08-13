@@ -8,16 +8,7 @@ var API_SECRET = api_obj.test.api_secret;
 var bfxArray = [];
 const bfx = new BFX ();
 
-/**
- * 
- *  BFX INSTANCE LOOP
- *  ? creates BFX() instances and saves to array.
- *  ? ws connections are split between each instance in the array.
- * 
- * 
- */ 
-
-
+// ? BFX instance loop 
 async function makeInstances() {
 for (var i = 0; i <= 5; i++) {
     bfxArray[i] = bfx.ws(2,{
@@ -30,8 +21,6 @@ for (var i = 0; i <= 5; i++) {
     }
 }
 
-makeInstances().then(
-    console.log(`${bfxArray.length} instances created.`)
-);
+makeInstances().then(console.log(bfxArray[0]));
 
 module.exports.BFX_INSTANCES = bfxArray;
