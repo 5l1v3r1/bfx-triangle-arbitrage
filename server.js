@@ -100,5 +100,5 @@ io.sockets.on('connection', function (socket) {
 eventEmitter.on('pulledBal', (bal) => {
     console.log(bal.length);
     _balances = bal;
-    open(url);
+    ope n(url);
 })

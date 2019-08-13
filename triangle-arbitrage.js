@@ -8,6 +8,7 @@ const BFX = require('bitfinex-api-node')
 const { Order } = require('bfx-api-node-models')
 const {OrderBook} = require('bfx-api-node-models')
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
+const BFX_SETUP = require('./BFX_SETUP')
 const path = require('path');
 const CRC = require('crc-32')
 const symbolDetails = require('./util/symbol_details')
@@ -19,6 +20,9 @@ const TimSort = require('timsort');
 var fs = require('fs');
 var api_obj = require('./apikeys.json');
 const { EventEmitter } = require('events') //Internal Events
+
+// ! websocket instance from BFX SETUP, change instance with arg
+const ws = BFX_SETUP.BFX_INSTANCES[process.argv[2]]
 
 var stream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_data.txt'), {flags: 'a'}); // ? Data stream
 var errlog = fs.createWriteStream(path.join(__dirname,"/log/ws_errors.txt"), {flags: 'a'}); // ? Websocket error logging
@@ -44,15 +48,6 @@ var symbols_details_array = [];
 var error_counts = [];
 
 const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit arbOpp
-
-const bfx = new BFX ()
-
-const ws = bfx.ws(2,{
-  apiKey: API_KEY,
-  apiSecret: API_SECRET,
-  manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
-  transform: true // auto-transform array OBs to OrderBook objects
-}) 
 
 /**
  * 
@@ -89,7 +84,7 @@ const ws = bfx.ws(2,{
 var errcounter = 0;
 
 ws.on('error', (err) => {
-  if (process.argv[2] !== '-v') {
+  if (process.argv[3] !== '-v') {
     if(err.code == 10305) {
       errcounter++;
       console.error(`${err.event} ${errcounter}: ${err.code} "${err.pair}" "${err.msg}"`)
