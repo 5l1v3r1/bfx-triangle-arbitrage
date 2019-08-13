@@ -8,7 +8,6 @@ const BFX = require('bitfinex-api-node')
 const { Order } = require('bfx-api-node-models')
 const {OrderBook} = require('bfx-api-node-models')
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
-const BFX_SETUP = require('./BFX_SETUP')
 const path = require('path');
 const CRC = require('crc-32')
 const symbolDetails = require('./util/symbol_details')
@@ -41,12 +40,19 @@ var orderArr = [];
 var alts = [];
 var mainpair = 'tETHBTC';
 var symbols_details_array = [];
-var bfxArray = BFX_SETUP.BFX_INSTANCES; // ? stores BFX objects
-
 
 var error_counts = [];
 
 const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit arbOpp
+
+const bfx = new BFX ()
+
+const ws = bfx.ws(2,{
+  apiKey: API_KEY,
+  apiSecret: API_SECRET,
+  manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
+  transform: true // auto-transform array OBs to OrderBook objects
+}) 
 
 /**
  * 
@@ -54,13 +60,15 @@ const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit a
  *  Process Arguments
  * 
  *  TODO: Add argument definitions
- * ? disable verbose mode (logging of errors): [ -v ] 
+ * ? disable verbose mode (logging of errors): [ -v ] (on by defualt)
  * ? asdasdasdasd
  * 
  * 
  */
 
- 
+
+
+
 /** 
  * 
  *  Event emitters
@@ -80,7 +88,7 @@ const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit a
 // TODO: Add min/max order size check from https://api.bitfinex.com/v1/symbols_details (array)
 var errcounter = 0;
 
-bfxArray[0].on('error', (err) => {
+ws.on('error', (err) => {
   if (process.argv[2] !== '-v') {
     if(err.code == 10305) {
       errcounter++;
@@ -94,25 +102,25 @@ bfxArray[0].on('error', (err) => {
   }
 })
 
-bfxArray[0].onMessage('', (msg) => {
+ws.onMessage('', (msg) => {
 
 })
 
-bfxArray[0].on('open', () => {
+ws.on('open', () => {
   console.log('open')
   console.log(`API key: ${chalk.yellow(API_KEY)} `);
   console.log(`API secret: ${chalk.yellow(API_SECRET)} `);
-  bfxArray[0].auth()
+  ws.auth()
 })
 
-bfxArray[0].once('auth', async () => {
-  console.time('bfxArray[0].once - auth');  
+ws.once('auth', async () => {
+  console.time('ws.once - auth');  
   console.log('authenticated');
   getBal().then(subscribeOBs()).then(getOBLoop());
-  console.timeEnd('bfxArray[0].once - auth');
+  console.timeEnd('ws.once - auth');
 })
 
-bfxArray[0].onWalletSnapshot('', (bal) => { 
+ws.onWalletSnapshot('', (bal) => { 
   var amount_currencies = bal.length;
   if (amount_currencies > 0) eventEmitter.emit('pulledBal', bal);
   console.log(`\n${chalk.green('Balances Snapshot')} ${Date.now()}`)
@@ -275,8 +283,8 @@ function subscribeOBs () {
       let pre = pair.substring(0,4); //prestring e.g "tOMG"
       let suf = pair.substring(4); // suffix e.g "ETH"
 
-      bfxArray[0].send({ event: 'conf', flags: 131072 }) // Checksum flag
-      bfxArray[0].subscribeOrderBook(pair) 
+      ws.send({ event: 'conf', flags: 131072 }) // Checksum flag
+      ws.subscribeOrderBook(pair) 
 
       try {
 
@@ -339,7 +347,7 @@ function reSubscribe(symbol, alt) {
   
   let unsubbed = new Promise ((resolve, reject) => {
 
-    bfxArray[0].unsubscribeOrderBook(symbol) 
+    ws.unsubscribeOrderBook(symbol) 
       ? resolve(console.log(`Unsubscribed from ${symbol}`)) 
       : reject(console.log(`Failed to unsubscribe from ${symbol}`))
 
@@ -348,21 +356,12 @@ function reSubscribe(symbol, alt) {
   if (unsubbed) {
 
     //resubscribe to OrderBook
-    let resubbed = bfxArray[0].subscribeOrderBook(symbol)
-    let sub_res, sub_rej;
-
-    if(process.argv[2] !== '-v') {
-      sub_res = 'Resubscribed to ' + symbol;
-      sub_rej = 'failed to re-subscribe to ' + symbol;
-    }
-    else {
-      sub_res = '';
-      sub_rej = sub_rej;
-    } 
-
-    resubbed ? resolve(console.log(sub_res)) 
-             : reject(console.log(sub_rej))
+    let resubbed = ws.subscribeOrderBook(symbol)
     
+    resubbed ? resolve(console.log("Resubscribed to", symbol)) 
+             : reject(console.log("failed to re-subscribe to", symbol))
+    
+  
   } else if (!unsubbed) {
     reject(console.log("failed to unsubscribe from", symbol))
   }
@@ -381,7 +380,7 @@ function getOBs(symbol) {
   let checksumcount = []
   checksumcount[symbol] = 0;
   
-  // Use events
+  //Use events
   let arbCalcReady = function() {
     if(symbolOB[alt][alt.concat(eth)] && symbolOB[alt][alt.concat(btc)] && symbolOB['tETH'][mainpair]) { 
     
@@ -395,7 +394,7 @@ function getOBs(symbol) {
       }
     }
 
-  bfxArray[0].onOrderBook({ symbol:symbol, precision:PRECISION, cbGID: altID}, (ob) => { 
+  ws.onOrderBook({ symbol:symbol, precision:PRECISION, cbGID: altID}, (ob) => { 
     // check if symbolOB has not initialized OrderBook objects for pairs
     if (ob.bids.length !== 0 && ob.asks.length !== 0) {
 
@@ -404,9 +403,9 @@ function getOBs(symbol) {
     
     }
     
-    if(bfxArray[0]._orderBooks[symbol].length !== 0) {
+    if(ws._orderBooks[symbol].length !== 0) {
       
-      if(bfxArray[0]._orderBooks[symbol]["csVerified"]) {
+      if(ws._orderBooks[symbol]["csVerified"]) {
 
         arbCalcReady()
 
@@ -417,12 +416,12 @@ function getOBs(symbol) {
         if(checksumcount[symbol] >= resub_trigger) {
           
           //Use reSubscribe function?
-          let unsub = bfxArray[0].unsubscribeOrderBook(symbol);
+          let unsub = ws.unsubscribeOrderBook(symbol);
           console.log(`Unsubscribed from ${symbol}`)
           
           if(unsub) {
             
-            bfxArray[0].subscribeOrderBook(symbol);
+            ws.subscribeOrderBook(symbol);
             console.log(`Resubscribed to ${symbol}`);  
             checksumcount[symbol] = 0;
           
@@ -597,15 +596,15 @@ function sendOrder(alt,o) {
       o.cancel().then(() => {
         console.log(' %s got cancel confirmation for order %s',alt, o.cid)
         return Promise.reject('Order cancelled')
-        //bfxArray[0].close()
+        //ws.close()
       }).catch((err) => {
         console.log(' %s error cancelling order: %j',alt, err)
-        bfxArray[0].close()
+        ws.close()
       })
     }, 2000)
   }).catch((err) => {
     console.log(alt,err)
-    bfxArray[0].close()
+    ws.close()
   })
 }
 
@@ -631,7 +630,7 @@ process.on('SIGINT', async function() {
 
   console.log(`unsubscribing from pairs`.red)
   await tpairs.forEach((pair) => {
-    var unsub = bfxArray[0].unsubscribeOrderBook(pair);
+    var unsub = ws.unsubscribeOrderBook(pair);
     if(unsub) console.log(`unsubscribed from ${pair}`)
   })
 
@@ -641,7 +640,7 @@ process.on('SIGINT', async function() {
 
 console.log("Finished!".green)//Finished symbolOB loop
 
-bfxArray[0].open()
+ws.open()
 
 // Organize these?
 module.exports.symbolOB = symbolOB;
