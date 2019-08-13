@@ -42,7 +42,7 @@ var wsArray = [];
 var sockets = [];
 var orderArr = []; 
 var alts = [];
-var mainpair = 'tETHBTC';
+var mainpair = 't' + process.argv[3];
 var symbols_details_array = [];
 
 var error_counts = [];
@@ -84,7 +84,7 @@ const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit a
 var errcounter = 0;
 
 ws.on('error', (err) => {
-  if (process.argv[3] !== '-v') {
+  if (process.argv[4] !== '-v') {
     if(err.code == 10305) {
       errcounter++;
       console.error(`${err.event} ${errcounter}: ${err.code} "${err.pair}" "${err.msg}"`)
@@ -105,6 +105,7 @@ ws.on('open', () => {
   console.log('open')
   console.log(`API key: ${chalk.yellow(API_KEY)} `);
   console.log(`API secret: ${chalk.yellow(API_SECRET)} `);
+  MainPair(mainpair);
   ws.auth()
 })
 
