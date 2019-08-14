@@ -264,7 +264,6 @@ function getOBLoop () {
 function subscribeOBs () {
   
   let counter = 0
-  tpairs = rv2.ethbtcpairs //refactor to account for mainpair
   tpairs = tpairs.slice(-61); // ! change to number under limit MUST BE INCLUSIVE TO SYMBOL PAIRINGS
   console.log(`tpairs length = ${tpairs.length}`)
   symbols_details_array = symbolDetails.symbol_details_array;
