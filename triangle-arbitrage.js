@@ -42,11 +42,10 @@ var wsArray = [];
 var sockets = [];
 var orderArr = []; 
 var alts = [];
-var mainpair = 't' + process.argv[3];
+var mainpair = 't' + String(process.argv[3]).toUpperCase();
 var symbols_details_array = [];
 
 var error_counts = [];
-
 const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit arbOpp
 
 /**
