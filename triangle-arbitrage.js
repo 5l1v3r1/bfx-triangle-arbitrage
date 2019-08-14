@@ -42,7 +42,8 @@ var wsArray = [];
 var sockets = [];
 var orderArr = []; 
 var alts = [];
-var mainpair = 't' + String(process.argv[3]).toUpperCase();
+var mainpair = process.argv[3].toUpperCase();
+mainpair = String("t" + mainpair)
 var mainpair_array = rv2.mainpairs;
 var symbols_details_array = [];
 
@@ -105,6 +106,8 @@ ws.on('open', () => {
   console.log('open')
   console.log(`API key: ${chalk.yellow(API_KEY)} `);
   console.log(`API secret: ${chalk.yellow(API_SECRET)} `);
+  let pair = "tUSDBTC";
+  //pair.concat(String(mainpair))
   MainPair(mainpair);
   ws.auth()
 })
@@ -242,7 +245,7 @@ eventEmitter.on('mainpair', (selectedpair) => {
 
 function MainPair (mainpair) {
   if(mainpair == 'tETHBTC') tpairs = rv2.ethbtcpairs;
-  if(mainpair == 'tUSDBTC') tpairs = rv2.usdbtcpairs;
+  if(mainpair == 'tBTCUSD') tpairs = rv2.usdbtcpairs;
 }
 
 async function getBal () {
@@ -265,10 +268,12 @@ function getOBLoop () {
 function subscribeOBs () {
   
   let counter = 0
+  console.log(mainpair.yellow)
+  tpairs.push(mainpair);
   tpairs = tpairs.slice(-61); // ! change to number under limit MUST BE INCLUSIVE TO SYMBOL PAIRINGS
   console.log(`tpairs length = ${tpairs.length}`)
   symbols_details_array = symbolDetails.symbol_details_array;
-  console.log('SYMBOL DETAILS ARRAY',symbols_details_array)
+  //console.log('SYMBOL DETAILS ARRAY',symbols_details_array)
   
   return new Promise ( (resolve, reject) => {
     
@@ -277,7 +282,6 @@ function subscribeOBs () {
 
       let pre = pair.substring(0,4); //prestring e.g "tOMG"
       let suf = pair.substring(4); // suffix e.g "ETH"
-
       ws.send({ event: 'conf', flags: 131072 }) // Checksum flag
       ws.subscribeOrderBook(pair) 
 
@@ -285,16 +289,17 @@ function subscribeOBs () {
 
         console.log(`subscribed to ${pair} on socket ${Math.abs(CRC.str(pair))}`);
         
-        if(pair !== mainpair) {
+        if(suf == mainpair.substring(4) && pair !== mainpair) {
           let basepair = mainpair.substring(0,4), quotepair = mainpair.substring(0,4);
           let pair1 = pre + basepair;
           let pair2 = pre + quotepair;
 
           // Group symbolOB into altcoin objects (symbolOB["tOMG"]) with eth & btc pairs nested
-          if(typeof symbolOB[pre] == 'undefined') symbolOB[pre] = {};
-          symbolOB[pre]['crossrate'] = -1;
-          symbolOB[pre]['maxAmount'] = 0;
-          symbolOB[pre]['lastCs'] = -1;
+          if(typeof symbolOB[pre] == 'undefined')
+            symbolOB[pre] = {};
+            symbolOB[pre]['crossrate'] = -1;
+            symbolOB[pre]['maxAmount'] = 0;
+            symbolOB[pre]['lastCs'] = -1;
           
           arbTrades[pre] = {p1:"", p2:"", minAmount:"", crossrate:""};
 
@@ -307,9 +312,9 @@ function subscribeOBs () {
         } 
 
         if (pair == mainpair) {
-          let quotepair = mainpair.substring(0,4)
-          symbolOB[quotepair] = {};
-          
+          let basepair = mainpair.substring(0,4)
+          symbolOB[basepair] = {};
+          console.log("Created mainpair symOB", basepair,symbolOB[basepair])
         }
         counter++
       }
@@ -365,23 +370,19 @@ function reSubscribe(symbol, alt) {
 function getOBs(symbol) {
   
   let alt = symbol.substring(0,4)
-  let eth = 'ETH', btc = 'BTC'
+  let basepair = mainpair.substring(1,4), quotepair = mainpair.substring(4);
   let altID = alt.concat('ID')
   let PRECISION = "P0"
   let resub_trigger = 10;
   let checksumcount = []
   checksumcount[symbol] = 0;
-  
   //Use events
   let arbCalcReady = function() {
-    if(symbolOB[alt][alt.concat(eth)] && symbolOB[alt][alt.concat(btc)] && symbolOB['tETH'][mainpair]) { 
-    
-        if((symbolOB[alt][alt.concat(eth)].asks || symbolOB[alt][alt.concat(btc)].bids) && symbolOB['tETH'][mainpair].asks) {
-        
-          if (alt !== 'tETH') {
+    if(symbolOB[alt][alt.concat(basepair)] && symbolOB[alt][alt.concat(quotepair)] && symbolOB[String("t"+basepair)][mainpair]) { 
+        if((symbolOB[alt][alt.concat(basepair)].asks || symbolOB[alt][alt.concat(quotepair)].bids) && symbolOB[String("t"+basepair)][mainpair].asks) {
+          if (alt !== basepair) {
             arbCalc(alt);
           }
-
         }
       }
     }
@@ -389,18 +390,14 @@ function getOBs(symbol) {
   ws.onOrderBook({ symbol:symbol, precision:PRECISION, cbGID: altID}, (ob) => { 
     // check if symbolOB has not initialized OrderBook objects for pairs
     if (ob.bids.length !== 0 && ob.asks.length !== 0) {
-
       symbolOB[alt][symbol] = ob; //Do I need this?
+      //if(symbol == mainpair) console.log("OB CHECK", symbolOB[alt], symbolOB[alt][mainpair])
       eventEmitter.emit('ob', { symbol: symbol, bids: ob.bids, asks: ob.asks });
     
     }
-    
     if(ws._orderBooks[symbol].length !== 0) {
-      
       if(ws._orderBooks[symbol]["csVerified"]) {
-
         arbCalcReady()
-
       } else {
 
         checksumcount[symbol]++;
@@ -436,11 +433,10 @@ function getOBs(symbol) {
 let arbCalc = async function (alt) {
 
   let mpPre = mainpair.substring(0,4),
-      eth =  alt.concat("ETH"), 
-      btc =  alt.concat("BTC");
-
-  let ob1 = symbolOB[alt][eth], 
-      ob2 = symbolOB[alt][btc], 
+      basepair = mainpair.substring(1,4), 
+      quotepair = mainpair.substring(4);
+  let ob1 = symbolOB[alt][alt.concat(basepair)], 
+      ob2 = symbolOB[alt][alt.concat(quotepair)], 
       ob3 = symbolOB[mpPre][mainpair];
   
   try{
@@ -461,17 +457,17 @@ let arbCalc = async function (alt) {
     let perc = 1 - crossrate
 
     let minAmount = Math.min((pair1ask[2])*-1,(pair2bid[2]))
-    let minETHAmount = (pair3ask[2]/pair1ask[0])
+    let minBaseAmount = (pair3ask[2]/pair1ask[0])
 
-    let symbols_string = String(alt) + 'ETH > ' + String(alt) + 'BTC > ' + String(mainpair) + ' | '
-    let alt_amount = String(arbTrades[alt]['minAmount']) + ' ' + (minETHAmount).toFixed(3)
+    let symbols_string = String(alt) + basepair +' > ' + String(alt) + quotepair + ' > ' + String(mainpair) + ' | '
+    let alt_amount = String(arbTrades[alt]['minAmount']) + ' ' + (minBaseAmount).toFixed(3)
     let bidask_string = String(pair1ask[0]) + ' ' + String(pair2bid[0]) + ' ' + chalk.bold(String(pair3ask[0]))
     let crossrate_string = crossrate.toFixed(8).toString()
     
     let makerFee = 0.1;
     let takerFee = 0.2;
     
-    if (minETHAmount*-1 < minAmount*1) minAmount = minETHAmount; // ask amounts are negative  
+    if (minBaseAmount*-1 < minAmount*1) minAmount = minBaseAmount; // ask amounts are negative  
     else minAmount = minAmount;
       
     let nowms = Date.now();
@@ -480,7 +476,7 @@ let arbCalc = async function (alt) {
 
     if (crossrate >= (1 + profit)) {
       
-      console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.yellow.bold(crossrate_string)}`,new Date())
+      console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ${basepair} ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.yellow.bold(crossrate_string)}`,new Date())
      
       // arbTrade array {}
       arbTrades[alt]['p1'] = pair1ask; 
@@ -522,7 +518,7 @@ let arbCalc = async function (alt) {
       }
 
       if(crossrate !== arbTrades[alt].crossrate) 
-       console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ETH ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
+       console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ${basepair} ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
             
       //Check if opp has closed
       if(arbTrades[alt].crossrate >= 1) {
