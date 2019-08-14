@@ -43,6 +43,7 @@ var sockets = [];
 var orderArr = []; 
 var alts = [];
 var mainpair = 't' + String(process.argv[3]).toUpperCase();
+var mainpair_array = rv2.mainpairs;
 var symbols_details_array = [];
 
 var error_counts = [];
@@ -284,14 +285,13 @@ function subscribeOBs () {
 
         console.log(`subscribed to ${pair} on socket ${Math.abs(CRC.str(pair))}`);
         
-        if(suf == 'ETH' && pair !== mainpair) {
-
-          let btc = pre, eth = pre;
-          btc += "BTC";
-          eth += "ETH";
+        if(pair !== mainpair) {
+          let basepair = mainpair.substring(0,4), quotepair = mainpair.substring(0,4);
+          let pair1 = pre + basepair;
+          let pair2 = pre + quotepair;
 
           // Group symbolOB into altcoin objects (symbolOB["tOMG"]) with eth & btc pairs nested
-          symbolOB[pre] = {};
+          if(typeof symbolOB[pre] == 'undefined') symbolOB[pre] = {};
           symbolOB[pre]['crossrate'] = -1;
           symbolOB[pre]['maxAmount'] = 0;
           symbolOB[pre]['lastCs'] = -1;
@@ -307,17 +307,15 @@ function subscribeOBs () {
         } 
 
         if (pair == mainpair) {
-          let pre = mainpair.substring(0,4)
-          symbolOB[pre] = {};
+          let quotepair = mainpair.substring(0,4)
+          symbolOB[quotepair] = {};
           
         }
         counter++
       }
       catch(err) {
-
         console.error(err);
         return reject(err)
-
       }
     }); 
 
