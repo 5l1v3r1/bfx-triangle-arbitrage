@@ -148,14 +148,15 @@ eventEmitter.on('orderClosed', (order) =>{
 })
 
 // ? Arbitrage Opportunity listener
+// TODO: Refactor for mainpair changes
 eventEmitter.on('ArbOpp', (symbol) => {
   let alt = symbol.substring(0,4),
-      eth = alt + 'ETH',
-      btc = alt + 'BTC'; 
+      base = alt + mainpair.substring(1,4),
+      quote = alt + mainpair.substring(4); 
   
   let isStaging = false; // ! Set to true for stagin
       
-  let initialEthBal = balances[0].balance, finalEthBal; // TODO: Track change in balance
+  let initialBaseBal = balances[0].balance, finalBaseBal; // TODO: Track change in balance
   let tradingEthAmount = 0.02; // TODO: Enable chosen trading amount
   
   let TYPE = Order.type.EXCHANGE_LIMIT;
@@ -166,7 +167,7 @@ eventEmitter.on('ArbOpp', (symbol) => {
   let ETHAMOUNT = -( ((BUYAMOUNT/arbTrades[alt].p1[0]) * arbTrades[alt].p2[0]) / arbTrades[alt].p3[0] ); // Amount of ETH to buy (negative), will be more than original amount.
   
   console.log(`\n${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ETHAMOUNT: ${ETHAMOUNT}`)
-  console.log(`${chalk.yellow('Profit amount (ETH):')} ${chalk.yellow(ETHAMOUNT - AMOUNT)}`)
+  console.log(`${chalk.yellow('Profit amount:')} ${chalk.yellow(ETHAMOUNT - AMOUNT)}`)
 
   /** 
    * ? Initialize orderArr, 3 orders
@@ -193,7 +194,7 @@ eventEmitter.on('ArbOpp', (symbol) => {
 
     var orders_sent = new Promise ((resolve, reject) => {
     try {
-      orders_formed.then(sendOrder(alt, order1) )
+      orders_formed.then(sendOrder(alt, order1))
       .then(sendOrder(alt, order2))
       .then(sendOrder(alt, order3))
       .then(resolve(`${alt} All orders closed!`)).catch((err) => {
@@ -244,8 +245,15 @@ eventEmitter.on('mainpair', (selectedpair) => {
 /* FUNCTIONS */
 
 function MainPair (mainpair) {
-  if(mainpair == 'tETHBTC') tpairs = rv2.ethbtcpairs;
-  if(mainpair == 'tBTCUSD') tpairs = rv2.usdbtcpairs;
+  // TODO: Refactor with substring
+  if(mainpair == 'tETHBTC') tpairs = rv2.ethbtc_pairs;
+  if(mainpair == 'tBTCUSD') tpairs = rv2.btcusd_pairs;
+  if(mainpair == 'tBTCEUR') tpairs = rv2.btceur_pairs;
+  if(mainpair == 'tETHEUR') tpairs = rv2.etheur_pairs;
+  if(mainpair == 'tBTCGBP') tpairs = rv2.btcgbp_pairs;
+  if(mainpair == 'tETHGBP') tpairs = rv2.ethgbp_pairs;
+  if(mainpair == 'tBTCJPY') tpairs = rv2.btcjpy_pairs;
+  if(mainpair == 'tETHJPY') tpairs = rv2.ethjpy_pairs;
 }
 
 async function getBal () {
@@ -268,8 +276,7 @@ function getOBLoop () {
 function subscribeOBs () {
   
   let counter = 0
-  console.log(mainpair.yellow)
-  tpairs.push(mainpair);
+  tpairs.push(mainpair)
   tpairs = tpairs.slice(-61); // ! change to number under limit MUST BE INCLUSIVE TO SYMBOL PAIRINGS
   console.log(`tpairs length = ${tpairs.length}`)
   symbols_details_array = symbolDetails.symbol_details_array;
@@ -323,7 +330,6 @@ function subscribeOBs () {
         return reject(err)
       }
     }); 
-
   alts.push(mainpair);
   console.timeEnd("subscribeOBs - tpairs.forEach");
   console.log(chalk.green("--DONE--"))
@@ -488,11 +494,10 @@ let arbCalc = async function (alt) {
       
       if(crossrate !== arbTrades[alt].crossrate) {
 
+        // TODO: Refactor this conditions
         if(typeof timer == 'undefined') {
-          
           //Start opportunity Timer
           timer = console.time(alt);
-        
         } else {
           
           console.timeLog(alt);
@@ -597,36 +602,36 @@ function sendOrder(alt,o) {
 }
 
 function setAmounts(alt) {
-  let MAIN = 'ethbtc';
   let arr = symbols_details_array;
-  let mainObj = filterIt(arr, MAIN); 
-  let minOrder = mainObj[0]['minimum_order_size'];
-  let amount =  minOrder / arbTrades[alt].p1[0]
+  //let mainObj = filterIt(arr, MAIN); 
+  //let minOrder = mainObj[0]['minimum_order_size'];
+  //let amount =  minOrder / arbTrades[alt].p1[0]
   //console.log('SET AMOUNTS: ',minOrder)
-  return amount;  
+  //return amount;  
 }
 
+// TODO: Fix this??
 function filterIt(arr, searchKey) {
   return arr.filter(obj => Object.keys(obj).some(key => obj[key].includes(searchKey)));
 }
 
 // Process functions
-
 process.on('SIGINT', async function() {
   // ! send unsubscribe to pairs
   console.log('SIGINT - Doing clean-up.')
 
   console.log(`unsubscribing from pairs`.red)
-  await tpairs.forEach((pair) => {
-    var unsub = ws.unsubscribeOrderBook(pair);
-    if(unsub) console.log(`unsubscribed from ${pair}`)
-  })
-
+  if(typeof tpairs !== 'undefined') {
+    await tpairs.forEach((pair) => {
+      var unsub = ws.unsubscribeOrderBook(pair);
+      if(unsub) console.log(`unsubscribed from ${pair}`)
+    })
+  }
   console.log('Done.')
   process.exit();
 });
 
-console.log("Finished!".green)//Finished symbolOB loop
+console.log("Finished!".green)
 
 ws.open()
 
