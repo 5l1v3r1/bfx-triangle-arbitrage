@@ -1,1 +1,1 @@
-node .\server.js
+node .\triangle-arbitrage 1 etheur
