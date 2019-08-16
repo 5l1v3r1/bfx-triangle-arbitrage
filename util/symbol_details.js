@@ -9,18 +9,16 @@ request.get(url, function(err, response, body) {
     var json = JSON.parse(body);
     
     for (var i = 0; i <= json.length - 1; i++) {
-
-        symbol_details_array[i] = {
-            'pair': json[i]['pair'],
+        // Reassign by pair name
+        let pair = json[i]['pair'];
+        symbol_details_array[pair] = {
             'maximum_order_size': json[i]['maximum_order_size'],
             'minimum_order_size': json[i]['minimum_order_size'] 
         }
-        //console.log(symbol_details_array[i]['pair'], symbol_details_array[i]['minimum_order_size'])
-
+        console.log(pair, symbol_details_array[pair])
     }
     console.log(`EXPORTED SYMBOL DETAILS\n`)
     module.exports.symbol_details_array = symbol_details_array;
-
 })
 
 
