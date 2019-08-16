@@ -44,8 +44,7 @@ var orderArr = [];
 var alts = [];
 var mainpair = process.argv[3].toUpperCase();
 mainpair = String("t" + mainpair)
-var mainpair_array = rv2.mainpairs;
-var symbols_details_array = [];
+var mainpair_array = rv2.mainpairs
 
 var error_counts = [];
 const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit arbOpp
@@ -160,14 +159,14 @@ eventEmitter.on('ArbOpp', (symbol) => {
   let tradingEthAmount = 0.02; // TODO: Enable chosen trading amount
   
   let TYPE = Order.type.EXCHANGE_LIMIT;
-  let AMOUNT = setAmounts(alt)
-  console.log(arbTrades[alt].p3)
+  let AMOUNT = setAmounts(alt); // Return amount in alt
+  console.log(arbTrades[alt].p3, AMOUNT);
   let ASKAMOUNT = AMOUNT * -1; //Amount of ALT to buy (negative)
   let BUYAMOUNT = AMOUNT; //Amount of ALT to sell (for BTC)
   let ETHAMOUNT = -( ((BUYAMOUNT/arbTrades[alt].p1[0]) * arbTrades[alt].p2[0]) / arbTrades[alt].p3[0] ); // Amount of ETH to buy (negative), will be more than original amount.
   
-  console.log(`\n${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ETHAMOUNT: ${ETHAMOUNT}`)
-  console.log(`${chalk.yellow('Profit amount:')} ${chalk.yellow(ETHAMOUNT - AMOUNT)}`)
+  console.log(`${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ETHAMOUNT: ${ETHAMOUNT}`)
+  console.log(`${chalk.yellow('Profit amount:')} ${chalk.yellow(ETHAMOUNT - AMOUNT)}\n`)
 
   /** 
    * ? Initialize orderArr, 3 orders
@@ -176,37 +175,34 @@ eventEmitter.on('ArbOpp', (symbol) => {
   */
   if(isStaging) {
     if(tradingEthAmount !== 0 && balances[0].balance > 0) {
-    var order1, order2, order3;
-    var orders_formed = new Promise ((resolve, reject) => {
+      var order1, order2, order3;
+      var orders_formed = new Promise ((resolve, reject) => {
       try{
-        order1 = new Order({ cid: Date.now()+"_1", symbol: eth, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-        order2 = new Order({ cid: Date.now()+"_2", symbol: btc, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        order1 = new Order({ cid: Date.now()+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        order2 = new Order({ cid: Date.now()+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
         order3 = new Order({ cid: Date.now()+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ETHAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
         resolve(`${alt} Orders formed`);
       } 
       catch(err) {
         reject(err);
       }
-
     })
-
+    
     var startTime = Date.now();
-
     var orders_sent = new Promise ((resolve, reject) => {
-    try {
-      orders_formed.then(sendOrder(alt, order1))
-      .then(sendOrder(alt, order2))
-      .then(sendOrder(alt, order3))
-      .then(resolve(`${alt} All orders closed!`)).catch((err) => {
-        console.log(err);
-      })
-    }
-    catch(err) {
-      //eventEmitter.emit('cancel_orders', alt);
-      console.log(`${alt} orders_sent error ${err}`)
-      reject(err)
-    }
-  
+      try {
+        orders_formed.then(sendOrder(alt, order1))
+        .then(sendOrder(alt, order2))
+        .then(sendOrder(alt, order3))
+        .then(resolve(`${alt} All orders closed!`)).catch((err) => {
+          console.log(err);
+        })
+      }
+      catch(err) {
+        eventEmitter.emit('cancel_orders', alt);
+        console.log(`${alt} orders_sent error ${err}`)
+        reject(err)
+      }
     }) 
 
     orders_sent.then( function(value) {
@@ -214,7 +210,6 @@ eventEmitter.on('ArbOpp', (symbol) => {
     var endTime = Date.now();
     console.log(`${value} took ${(endTime-startTime)/1000} seconds`);
     getBal();
-
     })
     }
     else {
@@ -229,17 +224,13 @@ eventEmitter.on('cancel_orders', (alt) => {
   for(var i = 0; i <= orderArr[alt].length; i++) { 
    orderArr[alt].cancel()
    .then( function() {
-
      console.log(`${alt} Orders cancelled ${Date.now()}`);
-
    });
   }
 })
 
 eventEmitter.on('mainpair', (selectedpair) => {
-
   mainpair = selectedpair;
-
 })
 
 /* FUNCTIONS */
@@ -279,7 +270,6 @@ function subscribeOBs () {
   tpairs.push(mainpair)
   tpairs = tpairs.slice(-61); // ! change to number under limit MUST BE INCLUSIVE TO SYMBOL PAIRINGS
   console.log(`tpairs length = ${tpairs.length}`)
-  symbols_details_array = symbolDetails.symbol_details_array;
   //console.log('SYMBOL DETAILS ARRAY',symbols_details_array)
   
   return new Promise ( (resolve, reject) => {
@@ -497,43 +487,33 @@ let arbCalc = async function (alt) {
         // TODO: Refactor this conditions
         if(typeof timer == 'undefined') {
           //Start opportunity Timer
-          timer = console.time(alt);
+          //timer = console.time(alt);
         } else {
-          
           console.timeLog(alt);
         }
 
         if(typeof begindate == 'undefined') { 
-          
           begindate = Date.now(); //Opportunity open time
           arbTrades[alt]['stime'] = begindate;
         
         }
-
       }
-    
     }
     else {
-
       if(typeof timer !== 'undefined'){ 
-        
         endtimerr = console.timeEnd(alt); 
         console.log(`${alt} lasted ${endtimer}`)
-      
       }
-
       if(crossrate !== arbTrades[alt].crossrate) 
        console.log(`${symbols_string.green} ${chalk.bold(alt_amount)} ( ${pair3ask[2]*-1} ${basepair} ) -> ${bidask_string} ${chalk.magenta('crossrate:')} ${chalk.red.bold(crossrate_string)}`,new Date())
             
       //Check if opp has closed
       if(arbTrades[alt].crossrate >= 1) {
         if(crossrate < arbTrades[alt].crossrate) {
-          
           enddate = Date.now();
           let opptime = Math.abs(enddate - arbTrades[alt]['stime']);
           eventEmitter.emit('closed', alt, opptime);
-          stream.write(`[${Date.now()}] ${alt} Profit: ${(arbTrades[alt].crossrate-1)*100}% Amount: ${arbTrades[alt].minAmount} p1: [${arbTrades[alt].p1}] p2: [${arbTrades[alt].p2}] p3: [${arbTrades[alt].p3}] - Open for ${(opptime/1000)} secs (${opptime}ms)\n`)
-        
+          stream.write(`[${Date.now()}] ${alt} Profit: ${(arbTrades[alt].crossrate-1)*100}% Amount: ${arbTrades[alt].minAmount} p1: [${arbTrades[alt].p1}] p2: [${arbTrades[alt].p2}] p3: [${arbTrades[alt].p3}] - Open for ${(opptime/1000)} secs (${opptime}ms)\n`)  
         }
       }
       
@@ -544,7 +524,6 @@ let arbCalc = async function (alt) {
       arbTrades[alt]['minAmount'] = minAmount;
       arbTrades[alt]['crossrate'] = crossrate;
     }
-    
   }
   catch(err) {
     let errmsg = err.message 
@@ -555,7 +534,6 @@ let arbCalc = async function (alt) {
 
 function sendOrder(alt,o) {
   let closed = false
-  
   // Enable automatic updates
   o.registerListeners()
 
@@ -601,13 +579,12 @@ function sendOrder(alt,o) {
   })
 }
 
-function setAmounts(alt) {
-  let arr = symbols_details_array;
-  //let mainObj = filterIt(arr, MAIN); 
-  //let minOrder = mainObj[0]['minimum_order_size'];
-  //let amount =  minOrder / arbTrades[alt].p1[0]
-  //console.log('SET AMOUNTS: ',minOrder)
-  //return amount;  
+function setAmounts(alt) { 
+  let minmax = symbolDetails.symbol_details_array;
+  let minOrder = minmax[alt]['minimum_order_size'];
+  let amount =  minOrder / arbTrades[alt].p1[0]
+  console.log('SET AMOUNTS: ',minOrder)
+  return amount;  
 }
 
 // TODO: Fix this??
