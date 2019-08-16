@@ -161,26 +161,27 @@ eventEmitter.on('ArbOpp', (symbol) => {
   let TYPE = Order.type.EXCHANGE_LIMIT;
   let AMOUNT = setAmounts(alt); // Return amount in alt
   console.log(arbTrades[alt].p3, AMOUNT);
-  let ASKAMOUNT = AMOUNT * -1; //Amount of ALT to buy (negative)
-  let BUYAMOUNT = AMOUNT; //Amount of ALT to sell (for BTC)
-  let ETHAMOUNT = -( ((BUYAMOUNT/arbTrades[alt].p1[0]) * arbTrades[alt].p2[0]) / arbTrades[alt].p3[0] ); // Amount of ETH to buy (negative), will be more than original amount.
+  let ASKAMOUNT = AMOUNT * -1; // Amount of ALT to buy (negative)
+  let BUYAMOUNT = AMOUNT; // Amount of ALT to sell (for BTC)
+  let ALTAMOUNT = -( ((BUYAMOUNT/arbTrades[alt].p1[0]) * arbTrades[alt].p2[0]) / arbTrades[alt].p3[0] ); // Amount of ETH to buy (negative), will be more than original amount.
   
-  console.log(`${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ETHAMOUNT: ${ETHAMOUNT}`)
-  console.log(`${chalk.yellow('Profit amount:')} ${chalk.yellow(ETHAMOUNT - AMOUNT)}\n`)
+  console.log(`${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ALTAMOUNT: ${ALTAMOUNT}`)
+  console.log(`${('Profit amount:')} ${chalk.yellow(Math.abs((AMOUNT*crossrate)-AMOUNT))}\n`)
 
   /** 
    * ? Initialize orderArr, 3 orders
    * ! make sure ask amounts are negative 
    * ! ADD FEES TO AMOUNTS
   */
+
   if(isStaging) {
-    if(tradingEthAmount !== 0 && balances[0].balance > 0) {
+    if(tradingAltAmount !== 0 && balances[0].balance > 0) {
       var order1, order2, order3;
       var orders_formed = new Promise ((resolve, reject) => {
       try{
         order1 = new Order({ cid: Date.now()+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
         order2 = new Order({ cid: Date.now()+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-        order3 = new Order({ cid: Date.now()+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ETHAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        order3 = new Order({ cid: Date.now()+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ALTAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
         resolve(`${alt} Orders formed`);
       } 
       catch(err) {
@@ -213,7 +214,7 @@ eventEmitter.on('ArbOpp', (symbol) => {
     })
     }
     else {
-      console.log(`${alt} Insufficient balance. Trading Balance: ${tradingEthAmount} Minimum Balance: ${arbTrades[alt].minAmount}`)
+      console.log(`${alt} Insufficient balance. Trading Balance: ${tradingAltAmount} Minimum Balance: ${arbTrades[alt].minAmount}`)
     }
   }
 
