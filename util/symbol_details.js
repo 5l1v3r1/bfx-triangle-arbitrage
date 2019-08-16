@@ -9,13 +9,15 @@ request.get(url, function(err, response, body) {
     var json = JSON.parse(body);
     
     for (var i = 0; i <= json.length - 1; i++) {
-        // Reassign by pair name
-        let pair = json[i]['pair'];
-        symbol_details_array[pair] = {
-            'maximum_order_size': json[i]['maximum_order_size'],
-            'minimum_order_size': json[i]['minimum_order_size'] 
+        let alt = "t" + json[i]['pair'].substring(0,3);
+        if(typeof symbol_details_array[alt] == 'undefined') {
+            // Reassign by alt name
+            symbol_details_array[alt] = {
+                'maximum_order_size': json[i]['maximum_order_size'],
+                'minimum_order_size': json[i]['minimum_order_size'] 
+            }
+            console.log(alt, symbol_details_array[alt])
         }
-        console.log(pair, symbol_details_array[pair])
     }
     console.log(`EXPORTED SYMBOL DETAILS\n`)
     module.exports.symbol_details_array = symbol_details_array;
