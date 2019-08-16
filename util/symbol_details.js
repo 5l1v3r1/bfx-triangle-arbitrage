@@ -9,7 +9,7 @@ request.get(url, function(err, response, body) {
     var json = JSON.parse(body);
     
     for (var i = 0; i <= json.length - 1; i++) {
-        let alt = "t" + json[i]['pair'].substring(0,3);
+        let alt = "t" + String(json[i]['pair'].substring(0,3)).toUpperCase();
         if(typeof symbol_details_array[alt] == 'undefined') {
             // Reassign by alt name
             symbol_details_array[alt] = {
