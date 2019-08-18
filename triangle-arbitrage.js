@@ -4,6 +4,7 @@
 
 const debug = require('debug')('triangle-arbitrage')
 const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
+const symbolDetails = require('./util/symbol_details')
 const BFX = require('bitfinex-api-node')
 const { Order } = require('bfx-api-node-models')
 const {OrderBook} = require('bfx-api-node-models')
@@ -11,7 +12,6 @@ const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
 const BFX_SETUP = require('./BFX_SETUP')
 const path = require('path');
 const CRC = require('crc-32')
-const symbolDetails = require('./util/symbol_details')
 const log = require ('ololog').noLocate;
 const ansi = require ('ansicolor').nice;
 const style = require ('ansi-styles');
@@ -45,8 +45,9 @@ var alts = [];
 var mainpair = process.argv[3].toUpperCase();
 mainpair = String("t" + mainpair)
 var mainpair_array = rv2.mainpairs
-
+var symdetailarr = [];
 var error_counts = [];
+
 const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit arbOpp
 
 /**
@@ -148,9 +149,9 @@ eventEmitter.on('orderClosed', (order) =>{
 
 // ? Arbitrage Opportunity listener
 // TODO: Refactor for mainpair changes
-eventEmitter.on('ArbOpp', (symbol) => {
-  let alt = symbol.substring(0,4),
-      base = alt + mainpair.substring(1,4),
+eventEmitter.on('ArbOpp', (emobj) => {
+  let alt = emobj.alt, crossrate = emobj.crossrate;
+  let base = alt + mainpair.substring(1,4),
       quote = alt + mainpair.substring(4); 
   
   let isStaging = false; // ! Set to true for stagin
@@ -178,16 +179,16 @@ eventEmitter.on('ArbOpp', (symbol) => {
     if(tradingAltAmount !== 0 && balances[0].balance > 0) {
       var order1, order2, order3;
       var orders_formed = new Promise ((resolve, reject) => {
-      try{
-        order1 = new Order({ cid: Date.now()+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-        order2 = new Order({ cid: Date.now()+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-        order3 = new Order({ cid: Date.now()+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ALTAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-        resolve(`${alt} Orders formed`);
-      } 
-      catch(err) {
-        reject(err);
-      }
-    })
+        try{
+          order1 = new Order({ cid: Date.now()+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+          order2 = new Order({ cid: Date.now()+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+          order3 = new Order({ cid: Date.now()+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ALTAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+          resolve(`${alt} Orders formed`);
+        } 
+        catch(err) {
+          reject(err);
+        }
+      })
     
     var startTime = Date.now();
     var orders_sent = new Promise ((resolve, reject) => {
@@ -206,18 +207,16 @@ eventEmitter.on('ArbOpp', (symbol) => {
       }
     }) 
 
-    orders_sent.then( function(value) {
-
-    var endTime = Date.now();
-    console.log(`${value} took ${(endTime-startTime)/1000} seconds`);
-    getBal();
-    })
+      orders_sent.then( function(value) {
+        var endTime = Date.now();
+        console.log(`${value} took ${(endTime-startTime)/1000} seconds`);
+        getBal();
+      })
     }
     else {
       console.log(`${alt} Insufficient balance. Trading Balance: ${tradingAltAmount} Minimum Balance: ${arbTrades[alt].minAmount}`)
     }
   }
-
 })
 
 // ! Use this to close all orders
@@ -481,7 +480,8 @@ let arbCalc = async function (alt) {
       arbTrades[alt]['p3'] = pair3ask; //make independent entry, make its own function to keep track of mainpair
       arbTrades[alt]['minAmount'] = minAmount;
       
-      eventEmitter.emit('ArbOpp', alt)  
+      let emobj = new Object({alt,crossrate});
+      eventEmitter.emit('ArbOpp', emobj)  
       
       if(crossrate !== arbTrades[alt].crossrate) {
 
@@ -581,8 +581,9 @@ function sendOrder(alt,o) {
 }
 
 function setAmounts(alt) { 
+  let sym = String(alt);
   let minmax = symbolDetails.symbol_details_array;
-  let minOrder = minmax[alt]['minimum_order_size'];
+  let minOrder = minmax[sym]["minimum_order_size"];
   let amount =  minOrder / arbTrades[alt].p1[0]
   console.log('SET AMOUNTS: ',minOrder)
   return amount;  

@@ -9,7 +9,7 @@
             "request": "launch",
             "name": "Launch Program",
             "program": "${workspaceFolder}\\triangle-arbitrage.js",
-            "args": ["1", "ethbtc"]
+            "args": ["1", "btceur"]
         }
     ]
 }

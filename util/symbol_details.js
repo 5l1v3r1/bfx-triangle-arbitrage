@@ -1,10 +1,12 @@
 'use strict'
 
 const request = require('request');
+const { EventEmitter } = require('events') //Internal Events
 const url = 'https://api.bitfinex.com/v1/symbols_details';
 var symbol_details_array = [];
+var symdetailsEmitter = new EventEmitter();
 
-request.get(url, function(err, response, body) {
+request.get(url, async function(err, response, body) {
 
     var json = JSON.parse(body);
     
@@ -20,9 +22,10 @@ request.get(url, function(err, response, body) {
         }
     }
     console.log(`EXPORTED SYMBOL DETAILS\n`)
-    module.exports.symbol_details_array = symbol_details_array;
+    module.exports.symbol_details_array = await symbol_details_array;
+    module.exports.emitter = await symdetailsEmitter;
+    symdetailsEmitter.emit("done")
 })
-
 
 
 function filterIt(arr, searchKey) {
