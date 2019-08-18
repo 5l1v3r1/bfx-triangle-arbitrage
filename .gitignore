@@ -1,10 +1,10 @@
 log/arbOpp_data.txt
 log/arbOpp_data0.txt
+log/arbOpp_test.txt
 log/ws_errors.txt
 yo.js
 public/yo
 views/examples/icons.ejs
 apikeys.json
 node_modules/bitfinex-api-node/examples/ws2/orders.js
-
 node_modules/bitfinex-api-node/examples/ws2/orders2.js
