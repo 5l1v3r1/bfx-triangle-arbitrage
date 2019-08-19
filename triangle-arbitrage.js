@@ -26,13 +26,13 @@ const ws = BFX_SETUP.BFX_INSTANCES[process.argv[2]]
 
 var stream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_data.txt'), {flags: 'a'}); // ? Data stream
 var errlog = fs.createWriteStream(path.join(__dirname,"/log/ws_errors.txt"), {flags: 'a'}); // ? Websocket error logging
+var teststream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_test.txt'), {flags: 'a'})
 
 //var api_stream = fs.createWriteStream(path.join(__dirname,'/apikeys.json'));
 var API_KEY = api_obj.test.api_key;
 var API_SECRET = api_obj.test.api_secret;
 
 // Pair Arrays
-// TODO: Need to use public API to update pairs automatically, filter out symbols that dont have multiple pairs to arb on.
 var tpairs = [];   // ? "tETHBTC"
 var symbolOB = []; // ? {bids:[], asks:[], midprice:[], lastmidprice:[]}
 var arbTrades = {}; // ? {p1:[], p2:[], p3:[], minAmount:[]}
@@ -81,7 +81,6 @@ const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit a
 
 /* ws listeners - bfx-api-node */
 
-// TODO: Add min/max order size check from https://api.bitfinex.com/v1/symbols_details (array)
 var errcounter = 0;
 
 ws.on('error', (err) => {
@@ -148,7 +147,6 @@ eventEmitter.on('orderClosed', (order) =>{
 })
 
 // ? Arbitrage Opportunity listener
-// TODO: Refactor for mainpair changes
 eventEmitter.on('ArbOpp', (emobj) => {
   let alt = emobj.alt, crossrate = emobj.crossrate;
   let base = alt + mainpair.substring(1,4),
@@ -159,16 +157,18 @@ eventEmitter.on('ArbOpp', (emobj) => {
   let initialBaseBal = balances[0].balance, finalBaseBal; // TODO: Track change in balance
   let tradingEthAmount = 0.02; // TODO: Enable chosen trading amount
   
+  // ! Check amount equations again
   let TYPE = Order.type.EXCHANGE_LIMIT;
   let AMOUNT = setAmounts(alt); // Return amount in alt
   console.log(arbTrades[alt].p3, AMOUNT);
-  let ASKAMOUNT = AMOUNT * -1; // Amount of ALT to buy (negative)
-  let BUYAMOUNT = AMOUNT; // Amount of ALT to sell (for BTC)
-  let ALTAMOUNT = -( ((BUYAMOUNT/arbTrades[alt].p1[0]) * arbTrades[alt].p2[0]) / arbTrades[alt].p3[0] ); // Amount of ETH to buy (negative), will be more than original amount.
-  
+  let ASKAMOUNT = Math.abs(AMOUNT) * -1; // Amount of ALT to buy (negative)
+  let BUYAMOUNT = AMOUNT * arbTrades[alt].p2[0] ; // Amount of ALT to sell (for BTC)
+  let ALTAMOUNT = -( ((BUYAMOUNT/arbTrades[alt].p1[0]) * arbTrades[alt].p2[0]) / arbTrades[alt].p3[0] ); // Amount of MAINPAIR to buy (negative), will be more than original amount.
+  let PROFITAMOUNT = Math.abs(((AMOUNT*arbTrades[alt].p1[0])*crossrate)-(AMOUNT*arbTrades[alt].p1[0])); // Amount of profit in ALT
   console.log(`${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ALTAMOUNT: ${ALTAMOUNT}`)
-  console.log(`${('Profit amount:')} ${chalk.yellow(Math.abs((AMOUNT*crossrate)-AMOUNT))}\n`)
-
+  console.log(`${('Profit amount:')} ${chalk.yellow(PROFITAMOUNT.toFixed(8))} ${chalk.yellow(alt.substring(1))}\n`)
+  teststream.write(`${Date.now()} ${alt} - ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ALTAMOUNT: ${ALTAMOUNT} ${('Profit amount:')} ${PROFITAMOUNT} ${alt.substring(1)}\n `)
+  
   /** 
    * ? Initialize orderArr, 3 orders
    * ! make sure ask amounts are negative 
@@ -236,7 +236,7 @@ eventEmitter.on('mainpair', (selectedpair) => {
 /* FUNCTIONS */
 
 function MainPair (mainpair) {
-  // TODO: Refactor with substring
+  // TODO: Refactor to switch
   if(mainpair == 'tETHBTC') tpairs = rv2.ethbtc_pairs;
   if(mainpair == 'tBTCUSD') tpairs = rv2.btcusd_pairs;
   if(mainpair == 'tBTCEUR') tpairs = rv2.btceur_pairs;
@@ -485,14 +485,6 @@ let arbCalc = async function (alt) {
       
       if(crossrate !== arbTrades[alt].crossrate) {
 
-        // TODO: Refactor this conditions
-        if(typeof timer == 'undefined') {
-          //Start opportunity Timer
-          //timer = console.time(alt);
-        } else {
-          console.timeLog(alt);
-        }
-
         if(typeof begindate == 'undefined') { 
           begindate = Date.now(); //Opportunity open time
           arbTrades[alt]['stime'] = begindate;
@@ -580,12 +572,13 @@ function sendOrder(alt,o) {
   })
 }
 
+// TODO: Returns buy amount of first order (abs)
 function setAmounts(alt) { 
   let sym = String(alt);
   let minmax = symbolDetails.symbol_details_array;
   let minOrder = minmax[sym]["minimum_order_size"];
   let amount =  minOrder / arbTrades[alt].p1[0]
-  console.log('SET AMOUNTS: ',minOrder)
+  console.log('SET AMOUNTS: ',minOrder, amount)
   return amount;  
 }
 
