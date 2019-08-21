@@ -1,7 +1,7 @@
 'use strict'
 
 //process.env.DEBUG = '*'
-
+const dotenv = require('dotenv').config()
 const debug = require('debug')('triangle-arbitrage')
 const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const symbolDetails = require('./util/symbol_details')
@@ -43,7 +43,7 @@ var sockets = [];
 var orderArr = []; 
 var alts = [];
 var mainpair = process.argv[3].toUpperCase();
-mainpair = String("t" + mainpair)
+mainpair = String("t" + mainpair) // TODO: Refactor ^
 var mainpair_array = rv2.mainpairs
 var symdetailarr = [];
 var error_counts = [];
@@ -152,10 +152,10 @@ eventEmitter.on('ArbOpp', (emobj) => {
   let base = alt + mainpair.substring(1,4),
       quote = alt + mainpair.substring(4); 
   
-  let isStaging = false; // ! Set to true for stagin
+  let isStaging = true; // ! Set to true for stagin
       
   let initialBaseBal = balances[0].balance, finalBaseBal; // TODO: Track change in balance
-  let tradingEthAmount = 0.02; // TODO: Enable chosen trading amount
+  let tradingAltAmount = 0.02; // TODO: Enable chosen trading amount
   
   // ! Check amount equations again
   let TYPE = Order.type.EXCHANGE_LIMIT;
@@ -167,35 +167,47 @@ eventEmitter.on('ArbOpp', (emobj) => {
   let PROFITAMOUNT = Math.abs(((AMOUNT*arbTrades[alt].p1[0])*crossrate)-(AMOUNT*arbTrades[alt].p1[0])); // Amount of profit in ALT
   console.log(`${alt} ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ALTAMOUNT: ${ALTAMOUNT}`)
   console.log(`${('Profit amount:')} ${chalk.yellow(PROFITAMOUNT.toFixed(8))} ${chalk.yellow(alt.substring(1))}\n`)
-  teststream.write(`${Date.now()} ${alt} - ASKAMOUNT: ${ASKAMOUNT} BUYAMOUNT: ${BUYAMOUNT} ALTAMOUNT: ${ALTAMOUNT} ${('Profit amount:')} ${PROFITAMOUNT} ${alt.substring(1)}\n `)
   
   /** 
    * ? Initialize orderArr, 3 orders
    * ! make sure ask amounts are negative 
    * ! ADD FEES TO AMOUNTS
   */
+  var order1, order2, order3;
+  var orders_formed = new Promise ((resolve, reject) => {
+    try{
+      order1 = new Order({ cid: Date.now()+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+      order2 = new Order({ cid: Date.now()+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+      order3 = new Order({ cid: Date.now()+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ALTAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+      teststream.write(`[${Date.now()}]\n[\n ${order1.toString()}\n ${order2.toString()}\n ${order3.toString()}\n]`)
+      resolve(`${alt} Orders formed`);
+    } 
+    catch(err) {
+      reject(err);
+    }
+  })
 
   if(isStaging) {
     if(tradingAltAmount !== 0 && balances[0].balance > 0) {
-      var order1, order2, order3;
-      var orders_formed = new Promise ((resolve, reject) => {
-        try{
-          order1 = new Order({ cid: Date.now()+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-          order2 = new Order({ cid: Date.now()+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-          order3 = new Order({ cid: Date.now()+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ALTAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-          resolve(`${alt} Orders formed`);
-        } 
-        catch(err) {
-          reject(err);
-        }
-      })
-    
+
     var startTime = Date.now();
     var orders_sent = new Promise ((resolve, reject) => {
       try {
-        orders_formed.then(sendOrder(alt, order1))
-        .then(sendOrder(alt, order2))
-        .then(sendOrder(alt, order3))
+        //TODO: Refactor with functions 
+        orders_formed.then(function() {
+          var result = sendOrder(alt, order1);
+          return result;
+        })
+        .then(function(result) {
+          if(result) var result2 = sendOrder(alt, order2);
+          else ws.close()
+          return result2;
+        })
+        .then(function(result2) {
+          if(result2) var result3 = sendOrder(alt, order3);
+          else ws.close();
+          return result3;
+        })
         .then(resolve(`${alt} All orders closed!`)).catch((err) => {
           console.log(err);
         })
