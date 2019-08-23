@@ -7,7 +7,7 @@ const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const symbolDetails = require('./util/symbol_details')
 const BFX = require('bitfinex-api-node')
 const { Order } = require('bfx-api-node-models')
-const {OrderBook} = require('bfx-api-node-models')
+const { OrderBook } = require('bfx-api-node-models') // TODO: Remove?
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
 const BFX_SETUP = require('./BFX_SETUP')
 const path = require('path');
@@ -141,13 +141,30 @@ eventEmitter.on('closed', function(symbol,opptime) {
   console.log(chalk.yellow(`${symbol} Opportunity closed. Lasted ${opptime/1000} seconds`));
 })
 
-// TODO: Handle cancelled orders here
-eventEmitter.on('orderClosed', (order) =>{
+// TODO: Handle closed orders here
+eventEmitter.on('orderclosed', (response) =>{
+  if(response.orderno == 0) {
+    orderArr[response.alt][1].submit()
+  }
+
+  if(response.orderno == 1) {
+    orderArr[response.alt][2].submit()
+  }  
+
+  // ? if last order has closed, reset inProgress
+  if(response.orderno == 2) {
+    orderArr[response.alt].inProgress = false;
+  }
+  
+  // ? reset closed values
+  if(!orderArr[response.alt].inProgress) 
+    for(var i = 0; i < 3; i++)
+      orderArr[response.alt][i].closed = false;
 
 })
 
 // ? Arbitrage Opportunity listener
-eventEmitter.on('ArbOpp', (emobj) => {
+eventEmitter.on('ArbOpp', async (emobj) => {
   let alt = emobj.alt, crossrate = emobj.crossrate;
   let base = alt + mainpair.substring(1,4),
       quote = alt + mainpair.substring(4); 
@@ -159,6 +176,7 @@ eventEmitter.on('ArbOpp', (emobj) => {
   
   // ! Check amount equations again
   let TYPE = Order.type.EXCHANGE_LIMIT;
+  // TODO: refactor setAmounts to return amount in alt
   let AMOUNT = setAmounts(alt); // Return amount in alt
   console.log(arbTrades[alt].p3, AMOUNT);
   let ASKAMOUNT = Math.abs(AMOUNT) * -1; // Amount of ALT to buy (negative)
@@ -173,12 +191,25 @@ eventEmitter.on('ArbOpp', (emobj) => {
    * ! make sure ask amounts are negative 
    * ! ADD FEES TO AMOUNTS
   */
+
+ const testorder = new Order({
+  cid: Date.now(),
+  symbol: 'tETHEUR',
+  price: 170.00,
+  amount: -0.02,
+  type: Order.type.EXCHANGE_LIMIT
+}, ws)
+
   var order1, order2, order3;
   var orders_formed = new Promise ((resolve, reject) => {
     try{
       order1 = new Order({ cid: Date.now()+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
       order2 = new Order({ cid: Date.now()+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
       order3 = new Order({ cid: Date.now()+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ALTAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+      orderArr[alt].push(order1)
+      orderArr[alt].push(order2)
+      orderArr[alt].push(order3)
+      console.log(`${alt} orderArr - ${orderArr[alt][0]}`)
       teststream.write(`[${Date.now()}]\n[\n ${order1.toString()}\n ${order2.toString()}\n ${order3.toString()}\n]`)
       resolve(`${alt} Orders formed`);
     } 
@@ -189,42 +220,24 @@ eventEmitter.on('ArbOpp', (emobj) => {
 
   if(isStaging) {
     if(tradingAltAmount !== 0 && balances[0].balance > 0) {
-
-    var startTime = Date.now();
-    var orders_sent = new Promise ((resolve, reject) => {
-      try {
-        //TODO: Refactor with functions 
-        orders_formed.then(function() {
-          var result = sendOrder(alt, order1);
-          return result;
-        })
-        .then(function(result) {
-          if(result) var result2 = sendOrder(alt, order2);
-          else ws.close()
-          return result2;
-        })
-        .then(function(result2) {
-          if(result2) var result3 = sendOrder(alt, order3);
-          else ws.close();
-          return result3;
-        })
-        .then(resolve(`${alt} All orders closed!`)).catch((err) => {
-          console.log(err);
-        })
-      }
-      catch(err) {
-        eventEmitter.emit('cancel_orders', alt);
-        console.log(`${alt} orders_sent error ${err}`)
-        reject(err)
-      }
-    }) 
-
-      orders_sent.then( function(value) {
-        var endTime = Date.now();
-        console.log(`${value} took ${(endTime-startTime)/1000} seconds`);
+      var startTime = Date.now();
+      if (orders_formed && !orderArr[alt].inProgress)   
+        try {
+          // ? send first order then listen to send next two orders
+          orderListeners(alt);
+          orderArr[alt][0].submit();
+          orderArr[alt].inProgress = true;
+        }
+        catch(err) {
+          console.error(`${alt} orders_sent error ${err}`)
+          reject(err)
+        } 
+        // TODO: add timer for ordersSent
+        //var endTime = Date.now();
+        //console.log(`${value} took ${(endTime-startTime)/1000} seconds`);
         getBal();
-      })
-    }
+
+      }
     else {
       console.log(`${alt} Insufficient balance. Trading Balance: ${tradingAltAmount} Minimum Balance: ${arbTrades[alt].minAmount}`)
     }
@@ -314,6 +327,8 @@ function subscribeOBs () {
 
           for(var i = 0; i <= 3; i++) { 
             orderArr[pre] = []; 
+            orderArr[pre]['inProgress'] = false;
+            orderArr[pre][i]['closed'] = false;
           }
             
           alts.push(pre);
@@ -537,50 +552,73 @@ let arbCalc = async function (alt) {
   }
 }
 
+// ? create orderArr listeners
+function orderListeners(alt) {
+  orderArr[alt].inProgress == true;
+  for(var i = 0; i < 3; i++) {
+    orderArr[alt][i].on('error', (err) => {
+      console.log(err);
+      orderArr[alt][i].cancel();
+    })
+
+    orderArr[alt][i].registerListeners()
+    console.log(`${alt} Registered listeners for order ${i}`)
+
+    orderArr[alt][i].on('update', () => {
+      console.log(' %s order updated: %j',alt, orderArr[alt][i].serialize())
+    })
+    
+    // ? Send next order from this
+    orderArr[alt][i].on('close', () => {
+      console.log(' %s order closed: %s',alt, orderArr[alt][i].status)
+      orderArr[alt][i]['closed'] = true;
+      eventEmitter.emit('orderclosed', {alt: alt, orderno: i});
+      return Promise.resolve(`${alt} Order ${i} closed.`);
+    })
+
+    orderArr[alt][i].on('cancelled', () => {
+      console.error(' %s order cancelled: %s',alt, orderArr[alt][i].status)
+      orderArr[alt][i].closed = false;
+      return Promise.reject(`${alt} Order ${i} cancelled.`);
+    })
+  }
+}
+
 function sendOrder(alt,o) {
-  let closed = false
-  // Enable automatic updates
-  o.registerListeners()
+  return new Promise ( async (res, rej) => {
+    let closed = false
+    // Enable automatic updates
+    try {
+    console.log(' %s submitting order %s',alt, o.cid)
+    
+    o.submit().then(function() {
+      console.log(' %s got submit confirmation for order %s [%s]',alt, o.cid, o.id)
+      // wait a bit...
+        setTimeout(() => {
+          if (closed) return res(Promise.resolve('Order Closed'));
 
-  o.on('update', () => {
-    console.log(' %s order updated: %j',alt, o.serialize())
-  })
+          console.log(' %s canceling order %s...',alt)
 
-  o.on('close', () => {
-    console.log(' %s order closed: %s',alt, o.status)
-    closed = true;
-    return Promise.resolve('Order closed');
-  })
-
-  o.on('cancelled', () => {
-    console.log(' %s order cancelled: %s',alt, o.status)
-    closed = false;
-    return Promise.reject('Order cancelled')
-  })
-
-  console.log(' %s submitting order %s',alt, o.cid)
-
-  o.submit().then(() => {
-    console.log(' %s got submit confirmation for order %s [%s]',alt, o.cid, o.id)
-
-    // wait a bit...
-    setTimeout(() => {
-      if (closed) return Promise.resolve('Order Closed')
-
-      console.log(' %s canceling order %s...',alt)
-
-      o.cancel().then(() => {
-        console.log(' %s got cancel confirmation for order %s',alt, o.cid)
-        return Promise.reject('Order cancelled')
-        //ws.close()
-      }).catch((err) => {
-        console.log(' %s error cancelling order: %j',alt, err)
-        ws.close()
+          o.cancel().then(() => {
+            console.log(' %s got cancel confirmation for order %s',alt, o.cid)
+            return rej(Promise.reject('Order cancelled'));
+            //ws.close()
+          }).catch((err) => {
+            console.log(' %s error cancelling order: %j',alt, err)
+            return rej(err);
+          })
+        }, 2000)
       })
-    }, 2000)
-  }).catch((err) => {
-    console.log(alt,err)
-    ws.close()
+      .catch((err) => {
+        console.log(alt,err)
+        return rej(err);
+      })
+
+    }
+    catch(err) {
+      console.error(err)
+      return rej(err)
+    }
   })
 }
 

@@ -7,6 +7,12 @@
         {
             "type": "node",
             "request": "launch",
+            "name": "yo",
+            "program": "${workspaceFolder}\\yo.js",
+            "args": ["recent", "4"]        },
+        {
+            "type": "node",
+            "request": "launch",
             "name": "Launch Program",
             "program": "${workspaceFolder}\\triangle-arbitrage.js",
             "args": ["1", "btceur"]
