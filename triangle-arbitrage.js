@@ -198,25 +198,28 @@ eventEmitter.on('ArbOpp', async (emobj) => {
   price: 170.00,
   amount: -0.02,
   type: Order.type.EXCHANGE_LIMIT
-}, ws)
+  }, ws)
 
-  var order1, order2, order3;
-  var orders_formed = new Promise ((resolve, reject) => {
-    try{
-      order1 = new Order({ cid: Date.now()+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-      order2 = new Order({ cid: Date.now()+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-      order3 = new Order({ cid: Date.now()+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ALTAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-      orderArr[alt].push(order1)
-      orderArr[alt].push(order2)
-      orderArr[alt].push(order3)
-      console.log(`${alt} orderArr - ${orderArr[alt][0]}`)
-      teststream.write(`[${Date.now()}]\n[\n ${order1.toString()}\n ${order2.toString()}\n ${order3.toString()}\n]`)
-      resolve(`${alt} Orders formed`);
-    } 
-    catch(err) {
-      reject(err);
-    }
-  })
+  if(!orderArr[alt].inProgress) {
+    var order1, order2, order3;
+    var orders_formed = new Promise ((resolve, reject) => {
+      try{
+        var datecid = Date.now();
+        order1 = new Order({ cid: datecid+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        order2 = new Order({ cid: datecid+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        order3 = new Order({ cid: datecid+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ALTAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        orderArr[alt].push(order1)
+        orderArr[alt].push(order2)
+        orderArr[alt].push(order3)
+        console.log(`${alt} orderArr - ${orderArr[alt][0]}`)
+        teststream.write(`[${Date.now()}]\n[\n ${order1.toString()}\n ${order2.toString()}\n ${order3.toString()}\n]`)
+        resolve(`${alt} Orders formed`);
+      } 
+      catch(err) {
+        reject(err);
+      }
+    })
+  }
 
   if(isStaging) {
     if(tradingAltAmount !== 0 && balances[0].balance > 0) {
@@ -317,22 +320,30 @@ function subscribeOBs () {
           let pair2 = pre + quotepair;
 
           // Group symbolOB into altcoin objects (symbolOB["tOMG"]) with eth & btc pairs nested
-          if(typeof symbolOB[pre] == 'undefined')
+          if(typeof symbolOB[pre] == 'undefined') {
             symbolOB[pre] = {};
             symbolOB[pre]['crossrate'] = -1;
             symbolOB[pre]['maxAmount'] = 0;
             symbolOB[pre]['lastCs'] = -1;
-          
-          arbTrades[pre] = {p1:"", p2:"", minAmount:"", crossrate:""};
+          }
 
-          for(var i = 0; i <= 3; i++) { 
+          // ? arbTrades init
+          if(typeof arbTrades[pre] == 'undefined')
+            arbTrades[pre] = {p1:"", p2:"", minAmount:"", crossrate:""};
+          
+          // ? orderArr init
+          if(typeof orderArr[pre] == 'undefined') {
             orderArr[pre] = []; 
             orderArr[pre]['inProgress'] = false;
-            orderArr[pre][i]['closed'] = false;
+            for(var i = 0; i <= 3; i++) {
+              orderArr[pre][i]['closed'] = false;
+              orderArr[pre][i]['starttime'] = -1;
+              orderArr[pre][i]['endtime'] = -1;
+            }
           }
-            
+          
           alts.push(pre);
-        
+      
         } 
 
         if (pair == mainpair) {
@@ -556,6 +567,7 @@ let arbCalc = async function (alt) {
 function orderListeners(alt) {
   orderArr[alt].inProgress == true;
   for(var i = 0; i < 3; i++) {
+    
     orderArr[alt][i].on('error', (err) => {
       console.log(err);
       orderArr[alt][i].cancel();
