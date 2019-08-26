@@ -143,23 +143,30 @@ eventEmitter.on('closed', function(symbol,opptime) {
 
 // TODO: Handle closed orders here
 eventEmitter.on('orderclosed', (response) =>{
-  if(response.orderno == 0) {
-    orderArr[response.alt][1].submit()
+  let orderno = response.orderno, alt = response.alt;
+  
+  // ? Record end time
+  orderArr[alt][orderno].endtime = Date.now();
+
+  if(orderno == 0) {
+    orderArr[alt][1].submit()
+    orderArr[alt][1].starttime = Date.now();
   }
 
-  if(response.orderno == 1) {
-    orderArr[response.alt][2].submit()
+  if(orderno == 1) {
+    orderArr[alt][2].submit()
+    orderArr[alt][2].starttime = Date.now();
   }  
 
   // ? if last order has closed, reset inProgress
-  if(response.orderno == 2) {
-    orderArr[response.alt].inProgress = false;
+  if(orderno == 2) {
+    orderArr[alt].inProgress = false;
   }
   
   // ? reset closed values
-  if(!orderArr[response.alt].inProgress) 
+  if(!orderArr[alt].inProgress) 
     for(var i = 0; i < 3; i++)
-      orderArr[response.alt][i].closed = false;
+      orderArr[alt][i].closed = false;
 
 })
 
@@ -341,7 +348,7 @@ function subscribeOBs () {
               orderArr[pre][i]['endtime'] = -1;
             }
           }
-          
+
           alts.push(pre);
       
         } 
