@@ -128,7 +128,6 @@ ws.onWalletSnapshot('', (bal) => {
     balances[i] = bal[i]; 
     console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
   }
-
   console.log('\n')
   getBal();
 }) 
@@ -215,9 +214,9 @@ eventEmitter.on('ArbOpp', async (emobj) => {
         order1 = new Order({ cid: datecid+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
         order2 = new Order({ cid: datecid+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
         order3 = new Order({ cid: datecid+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ALTAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-        orderArr[alt].push(order1)
-        orderArr[alt].push(order2)
-        orderArr[alt].push(order3)
+        orderArr[alt][0] = order1;
+        orderArr[alt][1] = order2;
+        orderArr[alt][2] = order3;
         console.log(`${alt} orderArr - ${orderArr[alt][0]}`)
         teststream.write(`[${Date.now()}]\n[\n ${order1.toString()}\n ${order2.toString()}\n ${order3.toString()}\n]`)
         resolve(`${alt} Orders formed`);
@@ -233,14 +232,13 @@ eventEmitter.on('ArbOpp', async (emobj) => {
       var startTime = Date.now();
       if (orders_formed && !orderArr[alt].inProgress)   
         try {
-          // ? send first order then listen to send next two orders
+          // ? Setup order listeners then send first order
           orderListeners(alt);
           orderArr[alt][0].submit();
           orderArr[alt].inProgress = true;
         }
         catch(err) {
           console.error(`${alt} orders_sent error ${err}`)
-          reject(err)
         } 
         // TODO: add timer for ordersSent
         //var endTime = Date.now();
@@ -343,6 +341,7 @@ function subscribeOBs () {
             orderArr[pre] = []; 
             orderArr[pre]['inProgress'] = false;
             for(var i = 0; i <= 3; i++) {
+              orderArr[pre][i] = [];
               orderArr[pre][i]['closed'] = false;
               orderArr[pre][i]['starttime'] = -1;
               orderArr[pre][i]['endtime'] = -1;
@@ -571,33 +570,38 @@ let arbCalc = async function (alt) {
 }
 
 // ? create orderArr listeners
-function orderListeners(alt) {
-  orderArr[alt].inProgress == true;
-  for(var i = 0; i < 3; i++) {
-    
-    orderArr[alt][i].on('error', (err) => {
-      console.log(err);
-      orderArr[alt][i].cancel();
-    })
+function orderListeners(alt_) {
+  orderArr[alt_].inProgress == true;
 
-    orderArr[alt][i].registerListeners()
+  // TODO: Refactor without i
+  // ? or make getListener function to pass i
+  // ? or use forEach and set 3 indexes on init
+  for(let i = 0; i < 3; i++) {
+    let alt = alt_;
+    let currentOrder = orderArr[alt][i]; // pull current order from orderArr
+    
+    currentOrder.on('error', (err) => {
+      console.log(err);
+      currentOrder.cancel();
+    })
+    currentOrder.registerListeners()
     console.log(`${alt} Registered listeners for order ${i}`)
 
-    orderArr[alt][i].on('update', () => {
-      console.log(' %s order updated: %j',alt, orderArr[alt][i].serialize())
+    currentOrder.on('update', () => {
+      console.log(' %s order updated: %j',alt, currentOrder.serialize())
     })
     
     // ? Send next order from this
-    orderArr[alt][i].on('close', () => {
-      console.log(' %s order closed: %s',alt, orderArr[alt][i].status)
-      orderArr[alt][i]['closed'] = true;
+    currentOrder.on('close', () => {
+      console.log(' %s order closed: %s',alt, currentOrder.status)
+      currentOrder['closed'] = true;
       eventEmitter.emit('orderclosed', {alt: alt, orderno: i});
       return Promise.resolve(`${alt} Order ${i} closed.`);
     })
 
-    orderArr[alt][i].on('cancelled', () => {
-      console.error(' %s order cancelled: %s',alt, orderArr[alt][i].status)
-      orderArr[alt][i].closed = false;
+    currentOrder.on('cancelled', () => {
+      console.error(' %s order cancelled: %s',alt, currentOrder.status)
+      currentOrder.closed = false;
       return Promise.reject(`${alt} Order ${i} cancelled.`);
     })
   }
