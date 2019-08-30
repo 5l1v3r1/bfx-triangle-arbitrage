@@ -340,7 +340,7 @@ function subscribeOBs () {
           if(typeof orderArr[pre] == 'undefined') {
             orderArr[pre] = []; 
             orderArr[pre]['inProgress'] = false;
-            for(var i = 0; i <= 3; i++) {
+            for(var i = 0; i < 3; i++) {
               orderArr[pre][i] = [];
               orderArr[pre][i]['closed'] = false;
               orderArr[pre][i]['starttime'] = -1;
@@ -573,9 +573,8 @@ let arbCalc = async function (alt) {
 function orderListeners(alt_) {
   orderArr[alt_].inProgress == true;
 
-  // TODO: Refactor without i
-  // ? or make getListener function to pass i
-  // ? or use forEach and set 3 indexes on init
+  // TODO: Create overall order listener to check for alt responses.
+
   for(let i = 0; i < 3; i++) {
     let alt = alt_;
     let currentOrder = orderArr[alt][i]; // pull current order from orderArr
@@ -604,6 +603,8 @@ function orderListeners(alt_) {
       currentOrder.closed = false;
       return Promise.reject(`${alt} Order ${i} cancelled.`);
     })
+
+    orderArr[alt][i] = currentOrder; // Reassign to array
   }
 }
 
