@@ -211,9 +211,9 @@ eventEmitter.on('ArbOpp', async (emobj) => {
     var orders_formed = new Promise ((resolve, reject) => {
       try{
         var datecid = Date.now();
-        order1 = new Order({ cid: datecid+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-        order2 = new Order({ cid: datecid+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
-        order3 = new Order({ cid: datecid+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ALTAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        order1 = new Order({ cid: alt+datecid+"_1", symbol: base, price: arbTrades[alt].p1[0], amount: ASKAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        order2 = new Order({ cid: alt+datecid+"_2", symbol: quote, price: arbTrades[alt].p2[0], amount: BUYAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
+        order3 = new Order({ cid: alt+datecid+"_3", symbol: mainpair, price: arbTrades[alt].p3[0], amount: ALTAMOUNT, type: Order.type.EXCHANGE_LIMIT}, ws)
         orderArr[alt][0] = order1;
         orderArr[alt][1] = order2;
         orderArr[alt][2] = order3;
@@ -347,9 +347,7 @@ function subscribeOBs () {
               orderArr[pre][i]['endtime'] = -1;
             }
           }
-
           alts.push(pre);
-      
         } 
 
         if (pair == mainpair) {
