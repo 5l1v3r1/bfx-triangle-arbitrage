@@ -581,7 +581,8 @@ function orderListeners(alt_) {
       console.log(err);
       currentOrder.cancel();
     })
-    currentOrder.registerListeners()
+
+    currentOrder.registerListeners() // Make separate ws instance to handle order response?
     console.log(`${alt} Registered listeners for order ${i}`)
 
     currentOrder.on('update', () => {
