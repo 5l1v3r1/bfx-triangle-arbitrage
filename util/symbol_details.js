@@ -19,7 +19,7 @@ request.get(url, async function(err, response, body) {
                 'maximum_order_size': json[i]['maximum_order_size'],
                 'minimum_order_size': json[i]['minimum_order_size'] 
             }
-            console.log(alt, symbol_details_array[alt])
+            //console.log(alt, symbol_details_array[alt])
         }
     }
     console.log(`EXPORTED SYMBOL DETAILS\n`)

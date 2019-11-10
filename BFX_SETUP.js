@@ -8,7 +8,15 @@ var API_SECRET = api_obj.test.api_secret;
 var bfxArray = [];
 const bfx = new BFX ();
 
-// ? BFX instance loop 
+/**
+ * 
+ *  BFX Setup
+ *  
+ *  Creates a BFX instance array to split up pair connections. 
+ *  Each instance has a 60 + 1 (mainpair) pair max to avoid timing out.
+ * 
+ *  
+ */ 
 async function makeInstances() {
 for (var i = 0; i <= 5; i++) {
     bfxArray[i] = bfx.ws(2,{
