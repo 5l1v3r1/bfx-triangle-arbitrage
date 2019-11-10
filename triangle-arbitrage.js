@@ -24,6 +24,7 @@ const { EventEmitter } = require('events') //Internal Events
 // ! websocket instance from BFX SETUP, change instance with arg
 const ws = BFX_SETUP.BFX_INSTANCES[process.argv[2]]
 
+// 
 var stream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_data.txt'), {flags: 'a'}); // ? Data stream
 var errlog = fs.createWriteStream(path.join(__dirname,"/log/ws_errors.txt"), {flags: 'a'}); // ? Websocket error logging
 var teststream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_test.txt'), {flags: 'a'})
@@ -269,15 +270,16 @@ eventEmitter.on('mainpair', (selectedpair) => {
 /* FUNCTIONS */
 
 function MainPair (mainpair) {
-  // TODO: Refactor to switch
-  if(mainpair == 'tETHBTC') tpairs = rv2.ethbtc_pairs;
-  if(mainpair == 'tBTCUSD') tpairs = rv2.btcusd_pairs;
-  if(mainpair == 'tBTCEUR') tpairs = rv2.btceur_pairs;
-  if(mainpair == 'tETHEUR') tpairs = rv2.etheur_pairs;
-  if(mainpair == 'tBTCGBP') tpairs = rv2.btcgbp_pairs;
-  if(mainpair == 'tETHGBP') tpairs = rv2.ethgbp_pairs;
-  if(mainpair == 'tBTCJPY') tpairs = rv2.btcjpy_pairs;
-  if(mainpair == 'tETHJPY') tpairs = rv2.ethjpy_pairs;
+  switch(mainpair) {
+    case 'tETHBTC': tpairs = rv2.ethbtc_pairs;
+    case 'tBTCUSD': tpairs = rv2.btcusd_pairs;
+    case 'tBTCEUR': tpairs = rv2.btceur_pairs;
+    case 'tETHEUR': tpairs = rv2.etheur_pairs;
+    case 'tBTCGBP': tpairs = rv2.btcgbp_pairs;
+    case 'tETHGBP': tpairs = rv2.ethgbp_pairs;
+    case 'tBTCJPY': tpairs = rv2.btcjpy_pairs;
+    case 'tETHJPY': tpairs = rv2.ethjpy_pairs;
+  }
 }
 
 async function getBal () {
