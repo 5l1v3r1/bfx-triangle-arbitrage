@@ -25,10 +25,10 @@ for (var i = 0; i <= 5; i++) {
       manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
       transform: true // auto-transform array OBs to OrderBook objects
     })  
-    console.log("Pushed bfx.ws to bfxArray -> " + bfxArray[i])
+    //console.log("Pushed bfx.ws to bfxArray -> " + bfxArray[i])
     }
 }
 
-makeInstances().then(console.log(bfxArray[0]));
+makeInstances().then();
 
 module.exports.BFX_INSTANCES = bfxArray;

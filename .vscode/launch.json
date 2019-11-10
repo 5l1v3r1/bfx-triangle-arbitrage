@@ -7,6 +7,13 @@
         {
             "type": "node",
             "request": "launch",
+            "name": "Launch triangle-arb-class",
+            "program": "${workspaceFolder}/triangle-arbitrage-class.js",
+            "args": [""]
+        },
+        {
+            "type": "node",
+            "request": "launch",
             "name": "yo",
             "program": "${workspaceFolder}\\yo.js",
             "args": ["recent", "4"]        },

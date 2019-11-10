@@ -31,12 +31,25 @@ class Pair {
         this.pair = pair;
         //1. bfx instance = ws
         this.ws = ws;
+        //2. Subscribe to OrderBook.
+        this.ws.subscribeOrderBook(this.pair);
+        this._orderBookListener();
+        //3. Setup onOrderBook listener.
         // TODO: refactor this to account for 't' and for pairs that have more than 3 chars for base/anchor.
-        this.base = pair.substring(1,3);
+        this.base = pair.substring(1,4);
         this.anchor = pair.substring(3);
         this.orderbook; // OrderBook instance for this pair. 
         this.topAsk; // Current Ask. 
         this.topBid; // Current Bid.
+    }
+
+    _orderBookListener() {
+        let PRECISION = "P0"
+        this.ws.onOrderBook({ symbol:this.pair, precision:PRECISION }, (ob) => {
+            console.log(`Got OrderBook`)
+            this.topAsk = ob.asks[0];
+            this.topBid = ob.bids[0];
+        })
     }
 
     /**
@@ -64,16 +77,16 @@ class Pair {
     }
 
     /**
-     * @param {Order} order 
+     * @param {float} amount 
      */
-    sendBidOrder(order) {
-        
+    sendBidOrder() {
+        this.makeOrder()
     }
 
     /**
-     * @param {Order} order 
+     * @param {float} amount 
      */
-    sendAskOrder(order) {
+    sendAskOrder(amount) {
 
     }
 
@@ -105,3 +118,19 @@ class ArbitrageTriangle {
         }
     }
 }
+
+var API_KEY = api_obj.test.api_key;
+var API_SECRET = api_obj.test.api_secret;
+var testPair;
+
+const ws = BFX_SETUP.BFX_INSTANCES[0];
+
+  ws.on('open', () => {
+    console.log('open')
+    console.log(`API key: ${chalk.yellow(API_KEY)} `);
+    console.log(`API secret: ${chalk.yellow(API_SECRET)} `);
+    testPair = new Pair('tOMGETH', ws);
+    console.log(testPair.topAsk)
+  })
+  
+  ws.open();
