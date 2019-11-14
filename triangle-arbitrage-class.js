@@ -48,9 +48,9 @@ class Pair extends EventEmitter {
     }
 
     _setupSymbols() {
-        // TODO: refactor this to account for 't' and for pairs that have more than 3 chars for base/anchor.
+        // TODO: refactor this to account for 't' and for pairs that have more than 3 chars for base/quote.
         this.base = this.pair.substring(1,4);
-        this.anchor = this.pair.substring(3);
+        this.quote = this.pair.substring(4);
     }
 
     /**
@@ -61,9 +61,7 @@ class Pair extends EventEmitter {
             this.currentAsk = ob.asks[0];
             this.currentBid = ob.bids[0];
 
-            this.currentBid[2] < (this.currentAsk[2] * -1) 
-                ? this.maxAmount = this.currentBid[2] 
-                : this.maxAmount = this.currentAsk[2]
+            this.maxAmount = Math.min(this.currentBid[2], Math.abs(this.currentAsk[2]))
             
             this.emit('ob_update', {
                 pair: this.pair,
@@ -125,7 +123,7 @@ class ArbitrageTriangle extends WSv2 {
      *   
      * @param {Object} opts - Object containing WSv2 constructor params (See ws2.js)
      * @param {Pair} mainpair - e.g tBTCUSD, tETHBTC, tBTCEUR... 
-     * @param {Pair[]} altpairs - Object containing Pairs with the same base (alt) currency.  
+     * @param {Pair[]} pairs - Object containing Pairs with the same base (alt) currency.  
      * 
      * 
      * 
@@ -134,7 +132,10 @@ class ArbitrageTriangle extends WSv2 {
         super(); 
         this._manageOrderBooks = opts.manageOrderBooks === true;
         this._transform = opts.transform === true;
+        //this.setPairs(pairs)
         this.open();
+
+        this._pairs = {}; //Change pair1/2 to pair Array format
     }
 
     /**
@@ -143,48 +144,61 @@ class ArbitrageTriangle extends WSv2 {
      */
     setMainPair(mainpair) {
         this.mainpair = mainpair;
+        
+        this.mainpair.on('ob_update', (order) => {
+            this.main = order;
+            // ! Need to calculate every Pair on update
+            //this._calculateArbitrage();
+        })
+
     }
 
-    /**
+    /** 
+     * @description Adds alt pairs to _pairs array
      * 
-     * @param {Pair[]} pairs 
+     * @param {Pairs} pair - alt pairs (base & quote)
      */
-    setPairs(pairs) {
-        this.pair1 = pairs.pair1;
-        this.pair2 = pairs.pair2;
+    addPair(pair) {
+        if(!this._pairs.hasOwnProperty(pair.base))
+            this._pairs[pair.base] = [];
+        this._pairs[pair.base].push(pair);
     }
 
     _setPairListeners() {
-        this.mainpair.on('ob_update', (order) => {
-            this.main = order;
-            this._calculateArbitrage();
-        })
-        this.pair1.on('ob_update', (order) => {
-            this.o1 = order;
-            this._calculateArbitrage();
-        })
-        this.pair2.on('ob_update', (order) => {
-            this.o2 = order;
-            this._calculateArbitrage();
-        })
+        for(var symbol in this._pairs) {
+            this._pairs[symbol][0].on('ob_update', (order) => {
+                this._pairs[symbol].o1 = order;
+                this._calculateArbitrage(this._pairs[symbol]);
+            })
+            this._pairs[symbol][1].on('ob_update', (order) => {
+                this._pairs[symbol].o2 = order;
+                this._calculateArbitrage(this._pairs[symbol]);
+            })
+        }
     }
     
-    _calculateArbitrage() {
-        if(typeof this.o1 !== 'undefined' && typeof this.o2 !== 'undefined' && typeof this.main !== 'undefined') {
-            let crossrate = ((1/this.o1.currentAsk[0]) * this.o2.currentBid[0]) / this.main.currentAsk[0]
-            console.log(crossrate)
+    _calculateArbitrage(obj) {
+        ////for-each loop through _pairs
+        if(typeof obj.o1 !== 'undefined' && typeof obj.o2 !== 'undefined' && typeof this.main !== 'undefined') {
+            let crossrate = ((1/obj.o1.currentAsk[0]) * obj.o2.currentBid[0]) / this.main.currentAsk[0]
+            this.maxAmount = Math.min(Math.abs(obj.o1.currentAsk[2]), Math.abs(obj.o1.currentBid[2]), Math.abs(this.main.currentAsk[2]))
+
+            if(crossrate !== this.crossrate)
+                console.log(`${Date.now()} - [${obj.o1.pair.substring(1)}>${obj.o2.pair.substring(1)}>${this.main.pair.substring(1)}] xrate: ${crossrate} max: ${this.maxAmount}`)
+            
+            this.crossrate = crossrate;
         }
     }
 
     /**
-     * @description Creates base & anchor pair from symbol.
+     * @description Creates base & quote pair from symbol.
      * 
      */
     _assignSymbols() {
         //TODO: refactor for base string length. 
         if(this.mainpair.charAt(0) == 't') {  
             this.basesymbol = this.mainpair.substring(1,3);
-            this.anchorsymbol = this.mainpair.substring(3);
+            this.quotesymbol = this.mainpair.substring(3);
         }
     }
 
@@ -219,16 +233,18 @@ var obj = {
   };
 
 
-const ws = new ArbitrageTriangle(obj);
+const arbTriangle = new ArbitrageTriangle(obj);
 
-  ws.on('open', () => {
-    console.log('open')
-    console.log(`API key: ${chalk.yellow(API_KEY)} `);
-    console.log(`API secret: ${chalk.yellow(API_SECRET)} `);
-    var mainPair = new Pair('tETHBTC', ws);
-    var pair1 = new Pair('tOMGETH', ws);
-    var pair2 = new Pair('tOMGBTC', ws);
-    ws.setMainPair(mainPair);
-    ws.setPairs({ pair1: pair1, pair2: pair2 });
-    ws._setPairListeners();
-  })
+arbTriangle.on('open', () => {
+    // Make into function
+    var pairs = {
+        pair1: new Pair('tOMGETH', arbTriangle),
+        pair2: new Pair('tOMGBTC', arbTriangle),
+    }
+    arbTriangle.setMainPair(new Pair('tETHBTC', arbTriangle));
+    arbTriangle.addPair(new Pair('tOMGETH', arbTriangle));
+    arbTriangle.addPair(new Pair('tOMGBTC', arbTriangle));
+    arbTriangle._setPairListeners();
+})
+
+
