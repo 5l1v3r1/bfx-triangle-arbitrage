@@ -146,9 +146,23 @@ class ArbitrageTriangle extends WSv2 {
         this.mainpair = mainpair;
         
         this.mainpair.on('ob_update', (order) => {
-            this.main = order;
-            // ! Need to calculate every Pair on update
-            //this._calculateArbitrage();
+            /**
+             * ! Need to calculate every Pair on update
+             * ! Use console.timer() 
+             */ 
+            if(typeof this.main !== 'undefined') {
+                if(this.main.currentAsk[0] !== order.currentAsk[0] || this.main.currentAsk[2] !== order.currentAsk[2] ) { //Array comparison
+                    this.main = order;
+                    console.log('Main pair')
+                    //console.time(`mainpair ob_update`)
+                    for(var base in this._pairs) {
+                        this._calculateArbitrage(this._pairs[base]);
+                    } 
+                    //console.timeEnd(`mainpair ob_update`)
+                }
+            }
+            else
+                this.main = order;
         })
 
     }
@@ -163,30 +177,39 @@ class ArbitrageTriangle extends WSv2 {
             this._pairs[pair.base] = [];
         this._pairs[pair.base].push(pair);
     }
-
+    //Fix for each loop
     _setPairListeners() {
-        for(var symbol in this._pairs) {
+        for(let symbol in this._pairs) {
             this._pairs[symbol][0].on('ob_update', (order) => {
-                this._pairs[symbol].o1 = order;
-                this._calculateArbitrage(this._pairs[symbol]);
+                if(order.pair.substring(1,4) == symbol) {
+                    this._pairs[symbol].o1 = order;
+                    this._calculateArbitrage(this._pairs[symbol]);
+                }
             })
             this._pairs[symbol][1].on('ob_update', (order) => {
-                this._pairs[symbol].o2 = order;
-                this._calculateArbitrage(this._pairs[symbol]);
+                if(order.pair.substring(1,4) == symbol) {
+                    this._pairs[symbol].o2 = order;
+                    this._calculateArbitrage(this._pairs[symbol]);
+                }
             })
         }
     }
-    
+    // ! Fix obj orders assigning to other symbol
     _calculateArbitrage(obj) {
-        ////for-each loop through _pairs
-        if(typeof obj.o1 !== 'undefined' && typeof obj.o2 !== 'undefined' && typeof this.main !== 'undefined') {
-            let crossrate = ((1/obj.o1.currentAsk[0]) * obj.o2.currentBid[0]) / this.main.currentAsk[0]
-            this.maxAmount = Math.min(Math.abs(obj.o1.currentAsk[2]), Math.abs(obj.o1.currentBid[2]), Math.abs(this.main.currentAsk[2]))
+        if(obj.hasOwnProperty('o1') && obj.hasOwnProperty('o2')) {
+            if(obj.o1.pair == 'tOMGETH' && obj.o2.pair == 'tREPBTC' || obj.o1.pair == 'tREPETH' && obj.o2.pair == 'tOMGBTC') {
+                console.log(obj)
+            }
+            ////for-each loop through _pairs
+            if(typeof obj.o1 !== 'undefined' && typeof obj.o2 !== 'undefined' && typeof this.main !== 'undefined') {
+                let crossrate = ((1/obj.o1.currentAsk[0]) * obj.o2.currentBid[0]) / this.main.currentAsk[0]
+                this.maxAmount = Math.min(Math.abs(obj.o1.currentAsk[2]), Math.abs(obj.o1.currentBid[2]), Math.abs(this.main.currentAsk[2]))
 
-            if(crossrate !== this.crossrate)
-                console.log(`${Date.now()} - [${obj.o1.pair.substring(1)}>${obj.o2.pair.substring(1)}>${this.main.pair.substring(1)}] xrate: ${crossrate} max: ${this.maxAmount}`)
-            
-            this.crossrate = crossrate;
+                if(crossrate !== this.crossrate)
+                    console.log(`${Date.now()} - [${obj.o1.pair.substring(1)}>${obj.o2.pair.substring(1)}>${this.main.pair.substring(1)}] xrate: ${crossrate.toFixed(4)} max: ${this.maxAmount}`)
+
+                this.crossrate = crossrate;
+            }
         }
     }
 
@@ -244,6 +267,8 @@ arbTriangle.on('open', () => {
     arbTriangle.setMainPair(new Pair('tETHBTC', arbTriangle));
     arbTriangle.addPair(new Pair('tOMGETH', arbTriangle));
     arbTriangle.addPair(new Pair('tOMGBTC', arbTriangle));
+    arbTriangle.addPair(new Pair('tREPETH', arbTriangle));
+    arbTriangle.addPair(new Pair('tREPBTC', arbTriangle));
     arbTriangle._setPairListeners();
 })
 
