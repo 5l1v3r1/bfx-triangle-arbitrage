@@ -1,58 +1,71 @@
 const dotenv = require('dotenv').config()
 const debug = require('debug')('triangle-arbitrage')
-const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
-const symbolDetails = require('./util/symbol_details')
+const { EventEmitter } = require('events')
+
 const BFX = require('bitfinex-api-node')
+const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const { Order } = require('bfx-api-node-models')
 const { OrderBook } = require('bfx-api-node-models') 
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
+
+const symbolDetails = require('./util/symbol_details')
 const BFX_SETUP = require('./BFX_SETUP')
+
 const path = require('path');
-const CRC = require('crc-32')
+const CRC = require('crc-32');
 const log = require ('ololog').noLocate;
 const ansi = require ('ansicolor').nice;
 const style = require ('ansi-styles');
 const chalk = require ('chalk');
-const TimSort = require('timsort');
-var fs = require('fs');
-var api_obj = require('./apikeys.json');
-const { EventEmitter } = require('events') //Internal Events
+////const TimSort = require('timsort');
+const fs = require('fs');
+const api_obj = require('./apikeys.json'); // TODO: make into env variable
+ 
 
 class Pair {
 
     /**
      * 
      * @param {string} pair: 'tOMGETH'
-     * @param {WebSocketInstance} ws
+     * @param {WSv2} ws
      * 
      */
 
     constructor(pair, ws) {
-        this.pair = pair;q
-        //1. bfx instance = ws
+        this.pair = pair;
         this.ws = ws;
-        //2. Subscribe to OrderBook.
+        this.orderbook_opts = { symbol:this.pair, precision:"P0" };
+        this.ws.send({ event: 'conf', flags: 131072 }) // Checksum flag
+        this.ws._manageOrderBooks = true;
         this.ws.subscribeOrderBook(this.pair);
-        this._orderBookListener();
-        //3. Setup onOrderBook listener.
-        // TODO: refactor this to account for 't' and for pairs that have more than 3 chars for base/anchor.
-        this.base = pair.substring(1,4);
-        this.anchor = pair.substring(3);
+        this._orderBookListener(); //this.onOrderBook()
+        this._setupSymbols();
         this.orderbook; // OrderBook instance for this pair. 
-        this.topAsk; // Current Ask. 
-        this.topBid; // Current Bid.
+        this.currentAsk; // Current Ask. 
+        this.currentBid; // Current Bid.
         this.maxAmount; // Maximum amount to buy for arbitrage cycle.
     }
 
+    _setupSymbols() {
+        // TODO: refactor this to account for 't' and for pairs that have more than 3 chars for base/anchor.
+        this.base = this.pair.substring(1,4);
+        this.anchor = this.pair.substring(3);
+    }
+
+    /**
+     * @description OrderBook Listener
+     */
     _orderBookListener() {
-        let PRECISION = "P0"
-        this.ws.onOrderBook({ symbol:this.pair, precision:PRECISION }, (ob) => {
-            console.log(`Got OrderBook`)
-            this.topAsk = ob.asks[0];
-            this.topBid = ob.bids[0];
+        this.ws.onOrderBook( this.orderbook_opts, (ob) => {
+            this.currentAsk = ob.asks[0];
+            this.currentBid = ob.bids[0];
             
-            //Figure out max amount
-            Math.abs()
+            this.currentBid[2] < (this.currentAsk[2] * -1) 
+                ? this.maxAmount = this.currentBid[2] 
+                : this.maxAmount = this.currentAsk[2]
+        }) 
+        this.ws.onOrderBookChecksum(this.orderbook_opts, (ob) => {
+            console.log(`${this.pair} - checksum ${ob}`)
         })
     }
 
@@ -80,26 +93,15 @@ class Pair {
         return this.ws.submitOrder(order);
     }
 
-    /**
-     * @param {float} amount 
-     */
-    sendBidOrder() {
-        this.makeOrder()
-    }
-
-    /**
-     * @param {float} amount 
-     */
-    sendAskOrder(amount) {
-
-    }
-
 }
 
-class ArbitrageTriangle extends EventEmitter {
+class ArbitrageTriangle extends WSv2 {
 
     /**
      * Trianglular arbitrage instance. 
+     * 
+     * 
+     * @description:
      * 
      * 1) Detects arbitrage opportunities.
      *      - Listens to orderbooks and calculates spread rate on each orderbook update.
@@ -110,49 +112,79 @@ class ArbitrageTriangle extends EventEmitter {
      *  
      * 2b) Could do 3 separate spread trades? Wouldn't have to wait for order fufillments.
      *      ? Submit all orders together -> Wait until all orders have been fufilled. 
-     *  
+     *
+     *  Subscribes to at least one mainpair, has up to 60 extra subscriptions (total 61 per WSv2 instance). 
      *   
-     * @param {Pair} pair1
-     * @param {Pair} pair2  
-     * @param {Pair} mainpair
+     * @param {Object} opts - Object containing WSv2 constructor params (See ws2.js)
+     * @param {Pair} mainpair - e.g tBTCUSD, tETHBTC, tBTCEUR... 
+     * @param {Pair[]} altpairs - Object containing Pairs with the same base (alt) currency.  
+     * 
+     * 
      * 
      */
-    constructor(pair1, pair2, mainpair) {
-        super();
-        // Listen to all orderbooks, should access it from a hashmap (object).
-        this.pair1 = pair1;
-        this.pair2 = pair2;
-        this.mainpair = mainpair; 
-        // Set up basepair & anchorpair.
-        this._assignPairs(symbol);
+    constructor(opts) {
+        super(); 
+        this._manageOrderBooks = true;
+        this._transform = true;
     }
 
     /**
-     * Creates base & anchor pair from symbol.
-     * @param symbol: 'omg'
+     * @description Set Main Pair
+     * @param {Pair} mainpair
+     */
+    setMainPair(mainpair) {
+        this.mainpair = mainpair;
+    }
+
+    /**
+     * @description Creates base & anchor pair from symbol.
      * 
      */
-    _assignPairs(symbol) {
-        //1. get mainpair and break into base & anchor strings.
+    _assignSymbols() {
+        //TODO: refactor for base string length. 
         if(this.mainpair.charAt(0) == 't') {  
-            this.basepair = this.mainpair.substring(1,3);
-            this.anchorpair = this.mainpair.substring(3);
+            this.basesymbol = this.mainpair.substring(1,3);
+            this.anchorsymbol = this.mainpair.substring(3);
         }
     }
+
+    /**
+     * 
+     * @returns {Boolean} - 
+     */
+    _subscribePairs() {
+        this.subscribeOrderBook( {symbol: this.mainpair, precision: "P0", cbGID: `${this.mainpair}-MAIN`});
+        for(var i = 0; i < this.altpairs.length; i++)
+            this.subscribeOrderBook({symbol: this.altpairs[i], precision: "P0", cbGID: `${this.mainpair}-MAIN`});
+    }
+
 }
+
+/**----------------------------------
+ * 
+ * 
+ *  Testing 
+ * 
+ * 
+ ----------------------------------*/
 
 var API_KEY = api_obj.test.api_key;
 var API_SECRET = api_obj.test.api_secret;
 var testPair;
 
-const ws = BFX_SETUP.BFX_INSTANCES[0];
+const ws = new ArbitrageTriangle({
+    apiKey: API_KEY,
+    apiSecret: API_SECRET,
+    manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
+    transform: true // auto-transform array OBs to OrderBook objects
+  });
 
   ws.on('open', () => {
     console.log('open')
     console.log(`API key: ${chalk.yellow(API_KEY)} `);
     console.log(`API secret: ${chalk.yellow(API_SECRET)} `);
     testPair = new Pair('tOMGETH', ws);
-    console.log(testPair.topAsk)
+    console.log(testPair.currentAsk)
   })
   
   ws.open();
