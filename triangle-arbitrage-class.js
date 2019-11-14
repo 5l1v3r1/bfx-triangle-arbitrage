@@ -22,7 +22,7 @@ const fs = require('fs');
 const api_obj = require('./apikeys.json'); // TODO: make into env variable
  
 
-class Pair {
+class Pair extends EventEmitter {
 
     /**
      * 
@@ -32,6 +32,7 @@ class Pair {
      */
 
     constructor(pair, ws) {
+        super();
         this.pair = pair;
         this.ws = ws;
         this.orderbook_opts = { symbol:this.pair, precision:"P0" };
@@ -59,10 +60,17 @@ class Pair {
         this.ws.onOrderBook( this.orderbook_opts, (ob) => {
             this.currentAsk = ob.asks[0];
             this.currentBid = ob.bids[0];
-            
+
             this.currentBid[2] < (this.currentAsk[2] * -1) 
                 ? this.maxAmount = this.currentBid[2] 
                 : this.maxAmount = this.currentAsk[2]
+            
+            this.emit('ob_update', {
+                pair: this.pair,
+                currentAsk: this.currentAsk,
+                currentBid: this.currentBid,
+                maxAmount: this.maxAmount
+            })
         }) 
         this.ws.onOrderBookChecksum(this.orderbook_opts, (ob) => {
             console.log(`${this.pair} - checksum ${ob}`)
@@ -124,8 +132,9 @@ class ArbitrageTriangle extends WSv2 {
      */
     constructor(opts) {
         super(); 
-        this._manageOrderBooks = true;
-        this._transform = true;
+        this._manageOrderBooks = opts.manageOrderBooks === true;
+        this._transform = opts.transform === true;
+        this.open();
     }
 
     /**
@@ -134,6 +143,37 @@ class ArbitrageTriangle extends WSv2 {
      */
     setMainPair(mainpair) {
         this.mainpair = mainpair;
+    }
+
+    /**
+     * 
+     * @param {Pair[]} pairs 
+     */
+    setPairs(pairs) {
+        this.pair1 = pairs.pair1;
+        this.pair2 = pairs.pair2;
+    }
+
+    _setPairListeners() {
+        this.mainpair.on('ob_update', (order) => {
+            this.main = order;
+            this._calculateArbitrage();
+        })
+        this.pair1.on('ob_update', (order) => {
+            this.o1 = order;
+            this._calculateArbitrage();
+        })
+        this.pair2.on('ob_update', (order) => {
+            this.o2 = order;
+            this._calculateArbitrage();
+        })
+    }
+    
+    _calculateArbitrage() {
+        if(typeof this.o1 !== 'undefined' && typeof this.o2 !== 'undefined' && typeof this.main !== 'undefined') {
+            let crossrate = ((1/this.o1.currentAsk[0]) * this.o2.currentBid[0]) / this.main.currentAsk[0]
+            console.log(crossrate)
+        }
     }
 
     /**
@@ -171,20 +211,24 @@ class ArbitrageTriangle extends WSv2 {
 var API_KEY = api_obj.test.api_key;
 var API_SECRET = api_obj.test.api_secret;
 var testPair;
-
-const ws = new ArbitrageTriangle({
+var obj = {
     apiKey: API_KEY,
     apiSecret: API_SECRET,
     manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
     transform: true // auto-transform array OBs to OrderBook objects
-  });
+  };
+
+
+const ws = new ArbitrageTriangle(obj);
 
   ws.on('open', () => {
     console.log('open')
     console.log(`API key: ${chalk.yellow(API_KEY)} `);
     console.log(`API secret: ${chalk.yellow(API_SECRET)} `);
-    testPair = new Pair('tOMGETH', ws);
-    console.log(testPair.currentAsk)
+    var mainPair = new Pair('tETHBTC', ws);
+    var pair1 = new Pair('tOMGETH', ws);
+    var pair2 = new Pair('tOMGBTC', ws);
+    ws.setMainPair(mainPair);
+    ws.setPairs({ pair1: pair1, pair2: pair2 });
+    ws._setPairListeners();
   })
-  
-  ws.open();
