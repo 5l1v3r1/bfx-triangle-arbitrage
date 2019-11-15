@@ -155,7 +155,7 @@ class ArbitrageTriangle extends WSv2 {
                     this.main = order;
                     console.log('Main pair')
                     //console.time(`mainpair ob_update`)
-                    for(var base in this._pairs) {
+                    for(let base in this._pairs) {
                         this._calculateArbitrage(this._pairs[base]);
                     } 
                     //console.timeEnd(`mainpair ob_update`)
@@ -220,8 +220,8 @@ class ArbitrageTriangle extends WSv2 {
     _assignSymbols() {
         //TODO: refactor for base string length. 
         if(this.mainpair.charAt(0) == 't') {  
-            this.basesymbol = this.mainpair.substring(1,3);
-            this.quotesymbol = this.mainpair.substring(3);
+            this.base = this.mainpair.substring(1,3);
+            this.quote = this.mainpair.substring(4);
         }
     }
 
@@ -233,6 +233,17 @@ class ArbitrageTriangle extends WSv2 {
         this.subscribeOrderBook( {symbol: this.mainpair, precision: "P0", cbGID: `${this.mainpair}-MAIN`});
         for(var i = 0; i < this.altpairs.length; i++)
             this.subscribeOrderBook({symbol: this.altpairs[i], precision: "P0", cbGID: `${this.mainpair}-MAIN`});
+    }
+
+    /**
+     * @public
+     */
+
+    /**
+     * @description Creates spread order strategy for given symbol
+     */
+    createSpread() {
+
     }
 
 }
@@ -248,7 +259,7 @@ class ArbitrageTriangle extends WSv2 {
 var API_KEY = api_obj.test.api_key;
 var API_SECRET = api_obj.test.api_secret;
 var testPair;
-var obj = {
+var opt = {
     apiKey: API_KEY,
     apiSecret: API_SECRET,
     manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
@@ -256,15 +267,12 @@ var obj = {
   };
 
 
-const arbTriangle = new ArbitrageTriangle(obj);
+const arbTriangle = new ArbitrageTriangle(opt);
 
 arbTriangle.on('open', () => {
-    // Make into function
-    var pairs = {
-        pair1: new Pair('tOMGETH', arbTriangle),
-        pair2: new Pair('tOMGBTC', arbTriangle),
-    }
+    // TODO: Make into function
     arbTriangle.setMainPair(new Pair('tETHBTC', arbTriangle));
+    // TODO: Try 14 pairs
     arbTriangle.addPair(new Pair('tOMGETH', arbTriangle));
     arbTriangle.addPair(new Pair('tOMGBTC', arbTriangle));
     arbTriangle.addPair(new Pair('tREPETH', arbTriangle));
