@@ -21,7 +21,6 @@ const chalk = require ('chalk');
 const fs = require('fs');
 const api_obj = require('./apikeys.json'); // TODO: make into env variable
  
-
 class Pair extends EventEmitter {
 
     /**
@@ -258,7 +257,7 @@ class ArbitrageTriangle extends WSv2 {
 
 var API_KEY = api_obj.test.api_key;
 var API_SECRET = api_obj.test.api_secret;
-var testPair;
+var tpairs = rv2.ethbtc_pairs;
 var opt = {
     apiKey: API_KEY,
     apiSecret: API_SECRET,
@@ -266,18 +265,36 @@ var opt = {
     transform: true // auto-transform array OBs to OrderBook objects
   };
 
+function addAllPairs(ws) {
+    let i;
+    for( i = 0; i < 30; i++)
+        ws.addPair(new Pair(tpairs[i], ws));
+    
+    console.log(`Added ${i} pairs to ArbitrageTriangle instance`)
+}
+
 
 const arbTriangle = new ArbitrageTriangle(opt);
 
 arbTriangle.on('open', () => {
     // TODO: Make into function
     arbTriangle.setMainPair(new Pair('tETHBTC', arbTriangle));
-    // TODO: Try 14 pairs
-    arbTriangle.addPair(new Pair('tOMGETH', arbTriangle));
-    arbTriangle.addPair(new Pair('tOMGBTC', arbTriangle));
-    arbTriangle.addPair(new Pair('tREPETH', arbTriangle));
-    arbTriangle.addPair(new Pair('tREPBTC', arbTriangle));
+    addAllPairs(arbTriangle);
     arbTriangle._setPairListeners();
 })
+
+arbTriangle.on('error', (err) => {
+    //if (process.argv[4] !== '-v') {
+      if(err.code == 10305) {
+        errcounter++;
+        console.error(`${err.event} ${errcounter}: ${err.code} "${err.pair}" "${err.msg}"`)
+      }
+      if(!err.message) {
+        console.error(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`); 
+        errlog.write(`${err.event}: ${err.code} "${err.pair}" "${err.msg}" \n`);
+      }
+      else console.error('error: %s', err.message)
+    //}
+  })
 
 
