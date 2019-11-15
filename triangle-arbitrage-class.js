@@ -176,7 +176,19 @@ class ArbitrageTriangle extends WSv2 {
             this._pairs[pair.base] = [];
         this._pairs[pair.base].push(pair);
     }
-    //Fix for each loop
+
+    /**
+     * 
+     * @param {Pair[]} pairArray - tpairs
+     */
+    addPairArray(pairArray) {
+        let i;
+        for(i = 0; i < 30; i++)
+            this.addPair(new Pair(pairArray[i], this));
+        
+        console.log(`Added ${i} pairs to ArbitrageTriangle instance`)
+    }
+
     _setPairListeners() {
         for(let symbol in this._pairs) {
             this._pairs[symbol][0].on('ob_update', (order) => {
@@ -265,21 +277,11 @@ var opt = {
     transform: true // auto-transform array OBs to OrderBook objects
   };
 
-function addAllPairs(ws) {
-    let i;
-    for( i = 0; i < 30; i++)
-        ws.addPair(new Pair(tpairs[i], ws));
-    
-    console.log(`Added ${i} pairs to ArbitrageTriangle instance`)
-}
-
-
 const arbTriangle = new ArbitrageTriangle(opt);
 
 arbTriangle.on('open', () => {
-    // TODO: Make into function
     arbTriangle.setMainPair(new Pair('tETHBTC', arbTriangle));
-    addAllPairs(arbTriangle);
+    arbTriangle.addPairArray(tpairs);
     arbTriangle._setPairListeners();
 })
 
