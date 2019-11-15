@@ -142,8 +142,8 @@ class ArbitrageTriangle extends WSv2 {
      * @param {Pair} mainpair
      */
     setMainPair(mainpair) {
+        // TODO: Fix mainpair scope
         this.mainpair = mainpair;
-        
         this.mainpair.on('ob_update', (order) => {
             /**
              * ! Need to calculate every Pair on update
@@ -163,7 +163,6 @@ class ArbitrageTriangle extends WSv2 {
             else
                 this.main = order;
         })
-
     }
 
     /** 
@@ -173,19 +172,21 @@ class ArbitrageTriangle extends WSv2 {
      */
     addPair(pair) {
         if(!this._pairs.hasOwnProperty(pair.base))
-            this._pairs[pair.base] = [];
-        this._pairs[pair.base].push(pair);
+            this._pairs[pair.base] = [1];
+        if(pair.quote == this.mainpair.base)
+            this._pairs[pair.base][0] = pair;
+        else 
+            this._pairs[pair.base][1] = pair;
     }
 
     /**
      * 
      * @param {Pair[]} pairArray - tpairs
      */
-    addPairArray(pairArray) {
+    addPairArray(pairArray, amount) {
         let i;
-        for(i = 0; i < 30; i++)
+        for(i = 0; i < amount; i++)
             this.addPair(new Pair(pairArray[i], this));
-        
         console.log(`Added ${i} pairs to ArbitrageTriangle instance`)
     }
 
@@ -270,22 +271,28 @@ class ArbitrageTriangle extends WSv2 {
 var API_KEY = api_obj.test.api_key;
 var API_SECRET = api_obj.test.api_secret;
 var tpairs = rv2.ethbtc_pairs;
+var tpairs_eur = rv2.etheur_pairs;
 var opt = {
     apiKey: API_KEY,
     apiSecret: API_SECRET,
     manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
     transform: true // auto-transform array OBs to OrderBook objects
-  };
+};
 
-const arbTriangle = new ArbitrageTriangle(opt);
+// TODO: Use hashmap/object
+// TODO: Split main pair into multiple ArbTri objects
+const arb_tETHBTC = new ArbitrageTriangle(opt);
+const arb_tETHEUR = new ArbitrageTriangle(opt);
 
-arbTriangle.on('open', () => {
-    arbTriangle.setMainPair(new Pair('tETHBTC', arbTriangle));
-    arbTriangle.addPairArray(tpairs);
-    arbTriangle._setPairListeners();
+
+// TODO: Make into function;
+arb_tETHBTC.on('open', () => {
+    arb_tETHBTC.setMainPair(new Pair('tETHBTC', arb_tETHBTC));
+    arb_tETHBTC.addPairArray(tpairs,30);
+    arb_tETHBTC._setPairListeners();
 })
 
-arbTriangle.on('error', (err) => {
+arb_tETHBTC.on('error', (err) => {
     //if (process.argv[4] !== '-v') {
       if(err.code == 10305) {
         errcounter++;
@@ -297,6 +304,24 @@ arbTriangle.on('error', (err) => {
       }
       else console.error('error: %s', err.message)
     //}
-  })
+})
 
+arb_tETHEUR.on('open', () => {
+    arb_tETHEUR.setMainPair(new Pair('tETHEUR', arb_tETHEUR));
+    arb_tETHEUR.addPairArray(tpairs_eur,tpairs_eur.length);
+    arb_tETHEUR._setPairListeners();
+})
 
+arb_tETHEUR.on('error', (err) => {
+    //if (process.argv[4] !== '-v') {
+      if(err.code == 10305) {
+        errcounter++;
+        console.error(`${err.event} ${errcounter}: ${err.code} "${err.pair}" "${err.msg}"`)
+      }
+      if(!err.message) {
+        console.error(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`); 
+        errlog.write(`${err.event}: ${err.code} "${err.pair}" "${err.msg}" \n`);
+      }
+      else console.error('error: %s', err.message)
+    //}
+})
