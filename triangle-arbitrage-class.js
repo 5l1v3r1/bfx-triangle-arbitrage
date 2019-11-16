@@ -17,7 +17,6 @@ const log = require ('ololog').noLocate;
 const ansi = require ('ansicolor').nice;
 const style = require ('ansi-styles');
 const chalk = require ('chalk');
-////const TimSort = require('timsort');
 const fs = require('fs');
 const api_obj = require('./apikeys.json'); // TODO: make into env variable
  
@@ -25,8 +24,10 @@ class Pair extends EventEmitter {
 
     /**
      * 
+     * @description Pair instance.
      * @param {string} pair: 'tOMGETH'
      * @param {WSv2} ws - WSv2 Instance
+     *
      *  
      */
 
@@ -35,15 +36,15 @@ class Pair extends EventEmitter {
         this.pair = pair;
         this.ws = ws;
         this.orderbook_opts = { symbol:this.pair, precision:"P0" };
-        this.ws.send({ event: 'conf', flags: 131072 }) // Checksum flag
+        this.ws.send({ event: 'conf', flags: 131072 }) // ? Checksum flag
         this.ws._manageOrderBooks = true;
         this.ws.subscribeOrderBook(this.pair);
-        this._orderBookListener(); //this.onOrderBook()
+        this._orderBookListener(); 
         this._setupSymbols();
-        this.orderbook; // OrderBook instance for this pair. 
-        this.currentAsk; // Current Ask. 
-        this.currentBid; // Current Bid.
-        this.maxAmount; // Maximum amount to buy for arbitrage cycle.
+        this.orderbook; 
+        this.currentAsk; 
+        this.currentBid; 
+        this.maxAmount; 
     }
 
     _setupSymbols() {
@@ -142,8 +143,7 @@ class ArbitrageTriangle extends WSv2 {
         this._manageOrderBooks = opts.manageOrderBooks === true;
         this._transform = opts.transform === true;
         this.open();
-
-        this._pairs = {}; //Change pair1/2 to pair Array format
+        this._pairs = {}; 
     }
 
     _setPairListeners() {
@@ -162,7 +162,7 @@ class ArbitrageTriangle extends WSv2 {
             })
         }
     }
-    // ! Fix obj orders assigning to other symbol
+    // BUG: Fix obj orders assigning to other symbol
     _calculateArbitrage(obj) {
         if(obj.hasOwnProperty('o1') && obj.hasOwnProperty('o2')) {
             if(obj.o1.pair == 'tOMGETH' && obj.o2.pair == 'tREPBTC' || obj.o1.pair == 'tREPETH' && obj.o2.pair == 'tOMGBTC') {
@@ -184,9 +184,9 @@ class ArbitrageTriangle extends WSv2 {
                 let profit = 0.0;
                 if(crossrate !== this.crossrate) {
                     if(crossrate >= 1 + profit)
-                        console.log(`${Date.now()} - [ ${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)} ] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs.maxAmount}`)
+                        console.log(`${Date.now()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
                     else 
-                        console.log(`${Date.now()} - [ ${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)} ] xrate: ${chalk.red(crossrate.toFixed(4))} max: ${this.maxAmount}`)
+                        console.log(`${Date.now()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
                     this.createSpread(obj.base); // TODO: Move to crossrate >= 1.00
                 }
                 this.crossrate = crossrate;
@@ -215,22 +215,22 @@ class ArbitrageTriangle extends WSv2 {
      * @param {Pair} mainpair
      */
     setMainPair(mainpair) {
-        // TODO: Fix mainpair scope (multiple ArbTri objects with different mainpairs)
+        // BUG: Fix mainpair scope (multiple ArbTri objects with different mainpairs)
         this.mainpair = mainpair;
         this.mainpair.on('ob_update', (order) => {
             /**
-             * ! Need to calculate every Pair on update
+             * ! Need to calculate against every Pair on update
              * ! Use console.timer() 
              */ 
             if(typeof this.main !== 'undefined') {
                 if(this.main.currentAsk[0] !== order.currentAsk[0] || this.main.currentAsk[2] !== order.currentAsk[2] ) { //Array comparison
                     this.main = order;
-                    console.log('Main pair')
-                    //console.time(`mainpair ob_update`)
+
+                    console.time(`mainpair ob_update`)
                     for(let base in this._pairs) {
                         this._calculateArbitrage(this._pairs[base]);
                     } 
-                    //console.timeEnd(`mainpair ob_update`)
+                    console.timeEnd(`mainpair ob_update`)
                 }
             }
             else
@@ -282,10 +282,10 @@ class ArbitrageTriangle extends WSv2 {
         pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.maxAmount);
         pair['orders'][2] = this.mainpair.makeOrder(this.main.currentAsk[0], (pair.maxAmount * -1));
         
-        console.log(`${Date.now()} - [${pair.base}] Orders: 
-                    [${pair.orders[0].price}, ${pair.orders[0].amount}] ASK
-                    [${pair.orders[1].price}, ${pair.orders[1].amount}] BID
-                    [${pair.orders[2].price}, ${pair.orders[2].amount}] ASK`) 
+        //console.log(`${Date.now()} - [${pair.base}] Orders: 
+        //            [${pair.orders[0].price}, ${pair.orders[0].amount}] ASK
+        //            [${pair.orders[1].price}, ${pair.orders[1].amount}] BID
+        //            [${pair.orders[2].price}, ${pair.orders[2].amount}] ASK`) 
     }
 
 }
@@ -311,18 +311,16 @@ var opt = {
     transform: true // auto-transform array OBs to OrderBook objects
 };
 
-// TODO: Split main pair into multiple ArbTri objects
-// TODO: store in hashmap/object
+// TODO: Split main pair into multiple ArbTri objects, store in hashmap/object
+
 const arb_tETHBTC = new ArbitrageTriangle(opt);
 
-// TODO: Make into function;
 arb_tETHBTC.on('open', () => {
     arb_tETHBTC.setMainPair(new Pair('tETHBTC', arb_tETHBTC));
     arb_tETHBTC.addPairArray(tpairs,30);
     arb_tETHBTC._setPairListeners();
 })
 
-// TODO: refactor
 arb_tETHBTC.on('error', (err) => {
     //if (process.argv[4] !== '-v') {
       if(err.code == 10305) {
