@@ -47,16 +47,20 @@ class Pair extends EventEmitter {
     }
 
     _setupSymbols() {
-        // ! BUG: Cannot read property on init
-        let mid = 4;
-        if(this.pair.length > 7) {
-            mid++;
-            this.base = this.pair.substring(1,mid);
-            this.quote = this.pair.substring(mid);
+        try {
+            let mid = 4;
+            if(this.pair.length > 7) {
+                mid++;
+                this.base = this.pair.substring(1,mid);
+                this.quote = this.pair.substring(mid);
+            }
+            else {
+                this.base = this.pair.substring(1,mid);
+                this.quote = this.pair.substring(mid);
+            }
         }
-        else {
-            this.base = this.pair.substring(1,mid);
-            this.quote = this.pair.substring(mid);
+        catch(err) {
+            console.log(err);
         }
     }
 
@@ -257,8 +261,10 @@ class ArbitrageTriangle extends WSv2 {
      */
     addPairArray(pairArray, amount) {
         let i;
-        for(i = 0; i < amount; i++)
+        for(i = 0; i < amount; i++) {
+            if(typeof pairArray[i] == undefined) return;
             this.addPair(new Pair(pairArray[i], this));
+        }
         console.log(`Added ${i} pairs to ArbitrageTriangle instance`)
     }
 
@@ -294,8 +300,10 @@ class ArbitrageTriangle extends WSv2 {
 
 var API_KEY = api_obj.test.api_key;
 var API_SECRET = api_obj.test.api_secret;
+
 var tpairs = rv2.ethbtc_pairs;
-var tpairs_eur = rv2.etheur_pairs;
+//var tpairs_eur = rv2.etheur_pairs;
+
 var opt = {
     apiKey: API_KEY,
     apiSecret: API_SECRET,
