@@ -47,10 +47,17 @@ class Pair extends EventEmitter {
     }
 
     _setupSymbols() {
-        // TODO: refactor this to account for 't' and for pairs that have more than 3 chars for base/quote.
         // ! BUG: Cannot read property on init
-        this.base = this.pair.substring(1,4);
-        this.quote = this.pair.substring(4);
+        let mid = 4;
+        if(this.pair.length > 7) {
+            mid++;
+            this.base = this.pair.substring(1,mid);
+            this.quote = this.pair.substring(mid);
+        }
+        else {
+            this.base = this.pair.substring(1,mid);
+            this.quote = this.pair.substring(mid);
+        }
     }
 
     /**
@@ -80,7 +87,6 @@ class Pair extends EventEmitter {
      *  amount < 0, selling.
      */
     makeOrder(price, amount) {
-        // TODO: refactor for ask/bid prices
         return new Order ({
             cid: Date.now(),
             symbol: this.pair,
@@ -171,7 +177,7 @@ class ArbitrageTriangle extends WSv2 {
                     Math.abs(orderAmountMain)
                 )
 
-                let profit = 0.0; 
+                let profit = 0.0;
                 if(crossrate !== this.crossrate) {
                     if(crossrate >= 1 + profit)
                         console.log(`${Date.now()} - [ ${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)} ] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs.maxAmount}`)
@@ -181,18 +187,6 @@ class ArbitrageTriangle extends WSv2 {
                 }
                 this.crossrate = crossrate;
             }
-        }
-    }
-
-    /**
-     * @description Creates base & quote pair from symbol.
-     * 
-     */
-    _assignSymbols() {
-        //TODO: refactor for base string length. 
-        if(this.mainpair.charAt(0) == 't') {  
-            this.base = this.mainpair.substring(1,3);
-            this.quote = this.mainpair.substring(4);
         }
     }
 
@@ -217,7 +211,7 @@ class ArbitrageTriangle extends WSv2 {
      * @param {Pair} mainpair
      */
     setMainPair(mainpair) {
-        // TODO: Fix mainpair scope
+        // TODO: Fix mainpair scope (multiple ArbTri objects with different mainpairs)
         this.mainpair = mainpair;
         this.mainpair.on('ob_update', (order) => {
             /**
@@ -246,7 +240,6 @@ class ArbitrageTriangle extends WSv2 {
      * @param {Pairs} pair - alt pairs (base & quote)
      */
     addPair(pair) {
-        // TODO: refactor to object?
         if(!this._pairs.hasOwnProperty(pair.base)) {
             this._pairs[pair.base] = [2];
             this._pairs[pair.base]['orders'] = [1];
