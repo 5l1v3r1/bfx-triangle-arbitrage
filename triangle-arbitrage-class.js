@@ -26,8 +26,8 @@ class Pair extends EventEmitter {
     /**
      * 
      * @param {string} pair: 'tOMGETH'
-     * @param {WSv2} ws
-     * 
+     * @param {WSv2} ws - WSv2 Instance
+     *  
      */
 
     constructor(pair, ws) {
@@ -48,6 +48,7 @@ class Pair extends EventEmitter {
 
     _setupSymbols() {
         // TODO: refactor this to account for 't' and for pairs that have more than 3 chars for base/quote.
+        // ! BUG: Cannot read property on init
         this.base = this.pair.substring(1,4);
         this.quote = this.pair.substring(4);
     }
@@ -59,8 +60,6 @@ class Pair extends EventEmitter {
         this.ws.onOrderBook( this.orderbook_opts, (ob) => {
             this.currentAsk = ob.asks[0];
             this.currentBid = ob.bids[0];
-
-            this.maxAmount = Math.min(this.currentBid[2], Math.abs(this.currentAsk[2]))
             
             this.emit('ob_update', {
                 pair: this.pair,
@@ -81,6 +80,7 @@ class Pair extends EventEmitter {
      *  amount < 0, selling.
      */
     makeOrder(price, amount) {
+        // TODO: refactor for ask/bid prices
         return new Order ({
             cid: Date.now(),
             symbol: this.pair,
@@ -131,11 +131,85 @@ class ArbitrageTriangle extends WSv2 {
         super(); 
         this._manageOrderBooks = opts.manageOrderBooks === true;
         this._transform = opts.transform === true;
-        //this.setPairs(pairs)
         this.open();
 
         this._pairs = {}; //Change pair1/2 to pair Array format
     }
+
+    _setPairListeners() {
+        for(let symbol in this._pairs) {
+            this._pairs[symbol][0].on('ob_update', (order) => {
+                if(order.pair.substring(1,4) == symbol) {
+                    this._pairs[symbol].o1 = order;
+                    this._calculateArbitrage(this._pairs[symbol]);
+                }
+            })
+            this._pairs[symbol][1].on('ob_update', (order) => {
+                if(order.pair.substring(1,4) == symbol) {
+                    this._pairs[symbol].o2 = order;
+                    this._calculateArbitrage(this._pairs[symbol]);
+                }
+            })
+        }
+    }
+    // ! Fix obj orders assigning to other symbol
+    _calculateArbitrage(obj) {
+        if(obj.hasOwnProperty('o1') && obj.hasOwnProperty('o2')) {
+            if(obj.o1.pair == 'tOMGETH' && obj.o2.pair == 'tREPBTC' || obj.o1.pair == 'tREPETH' && obj.o2.pair == 'tOMGBTC') {
+                console.log(obj)
+            }
+            ////for-each loop through _pairs
+            if(typeof obj.o1 !== 'undefined' && typeof obj.o2 !== 'undefined' && typeof this.main !== 'undefined') {
+                let crossrate = ((1/obj.o1.currentAsk[0]) * obj.o2.currentBid[0]) / this.main.currentAsk[0]
+
+                let orderAmount1 = obj.o1.currentAsk[2] * obj.o1.currentAsk[0]; // Amount in ETH
+                let orderAmount2 = (obj.o2.currentBid[2] * obj.o2.currentAsk[0]) / this.main.currentAsk[0]; // Amount in BTC (coverted value to eth)
+                let orderAmountMain = this.main.currentAsk[2] * this.main.currentAsk[0]; // Amount in ETH
+                this._pairs[obj.base].maxAmount = Math.min(
+                    Math.abs(orderAmount1), 
+                    Math.abs(orderAmount2), 
+                    Math.abs(orderAmountMain)
+                )
+
+                if(crossrate !== this.crossrate) {
+                    if(crossrate >= 1.00)
+                        console.log(`${Date.now()} - [ ${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)} ] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs.maxAmount}`)
+                    else 
+                        console.log(`${Date.now()} - [ ${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)} ] xrate: ${chalk.red(crossrate.toFixed(4))} max: ${this.maxAmount}`)
+                    this.createSpread(obj.base);
+                }
+                this.crossrate = crossrate;
+            }
+        }
+    }
+
+    /**
+     * @description Creates base & quote pair from symbol.
+     * 
+     */
+    _assignSymbols() {
+        //TODO: refactor for base string length. 
+        if(this.mainpair.charAt(0) == 't') {  
+            this.base = this.mainpair.substring(1,3);
+            this.quote = this.mainpair.substring(4);
+        }
+    }
+
+    /**
+     * 
+     * @returns {Boolean} - 
+     */
+    _subscribePairs() {
+        this.subscribeOrderBook( {symbol: this.mainpair, precision: "P0", cbGID: `${this.mainpair}-MAIN`});
+        for(var i = 0; i < this.altpairs.length; i++)
+            this.subscribeOrderBook({symbol: this.altpairs[i], precision: "P0", cbGID: `${this.mainpair}-MAIN`});
+    }
+
+    /**
+     * 
+     * @public methods
+     * 
+     */
 
     /**
      * @description Set Main Pair
@@ -171,8 +245,12 @@ class ArbitrageTriangle extends WSv2 {
      * @param {Pairs} pair - alt pairs (base & quote)
      */
     addPair(pair) {
-        if(!this._pairs.hasOwnProperty(pair.base))
-            this._pairs[pair.base] = [1];
+        // TODO: refactor to object?
+        if(!this._pairs.hasOwnProperty(pair.base)) {
+            this._pairs[pair.base] = [2];
+            this._pairs[pair.base]['orders'] = [1];
+            this._pairs[pair.base]['base'] = pair.base;
+        }
         if(pair.quote == this.mainpair.base)
             this._pairs[pair.base][0] = pair;
         else 
@@ -190,72 +268,24 @@ class ArbitrageTriangle extends WSv2 {
         console.log(`Added ${i} pairs to ArbitrageTriangle instance`)
     }
 
-    _setPairListeners() {
-        for(let symbol in this._pairs) {
-            this._pairs[symbol][0].on('ob_update', (order) => {
-                if(order.pair.substring(1,4) == symbol) {
-                    this._pairs[symbol].o1 = order;
-                    this._calculateArbitrage(this._pairs[symbol]);
-                }
-            })
-            this._pairs[symbol][1].on('ob_update', (order) => {
-                if(order.pair.substring(1,4) == symbol) {
-                    this._pairs[symbol].o2 = order;
-                    this._calculateArbitrage(this._pairs[symbol]);
-                }
-            })
-        }
-    }
-    // ! Fix obj orders assigning to other symbol
-    _calculateArbitrage(obj) {
-        if(obj.hasOwnProperty('o1') && obj.hasOwnProperty('o2')) {
-            if(obj.o1.pair == 'tOMGETH' && obj.o2.pair == 'tREPBTC' || obj.o1.pair == 'tREPETH' && obj.o2.pair == 'tOMGBTC') {
-                console.log(obj)
-            }
-            ////for-each loop through _pairs
-            if(typeof obj.o1 !== 'undefined' && typeof obj.o2 !== 'undefined' && typeof this.main !== 'undefined') {
-                let crossrate = ((1/obj.o1.currentAsk[0]) * obj.o2.currentBid[0]) / this.main.currentAsk[0]
-                this.maxAmount = Math.min(Math.abs(obj.o1.currentAsk[2]), Math.abs(obj.o1.currentBid[2]), Math.abs(this.main.currentAsk[2]))
-
-                if(crossrate !== this.crossrate)
-                    console.log(`${Date.now()} - [${obj.o1.pair.substring(1)}>${obj.o2.pair.substring(1)}>${this.main.pair.substring(1)}] xrate: ${crossrate.toFixed(4)} max: ${this.maxAmount}`)
-
-                this.crossrate = crossrate;
-            }
-        }
-    }
-
-    /**
-     * @description Creates base & quote pair from symbol.
-     * 
-     */
-    _assignSymbols() {
-        //TODO: refactor for base string length. 
-        if(this.mainpair.charAt(0) == 't') {  
-            this.base = this.mainpair.substring(1,3);
-            this.quote = this.mainpair.substring(4);
-        }
-    }
-
-    /**
-     * 
-     * @returns {Boolean} - 
-     */
-    _subscribePairs() {
-        this.subscribeOrderBook( {symbol: this.mainpair, precision: "P0", cbGID: `${this.mainpair}-MAIN`});
-        for(var i = 0; i < this.altpairs.length; i++)
-            this.subscribeOrderBook({symbol: this.altpairs[i], precision: "P0", cbGID: `${this.mainpair}-MAIN`});
-    }
-
-    /**
-     * @public
-     */
-
     /**
      * @description Creates spread order strategy for given symbol
+     *  - Ask orders take negative amount value.
+     *  - Bid orders take positive amount value.
+     *  Pair.maxAmount is positive so need to account for this.
+     * @param {String} base - base symbol for arbitrage cycle.
      */
-    createSpread() {
+    createSpread(base) {
+        let pair = this._pairs[base];
 
+        pair['orders'][0] = pair[0].makeOrder(pair.o1.currentAsk[0], (pair.maxAmount * -1));
+        pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.maxAmount);
+        pair['orders'][2] = this.mainpair.makeOrder(this.main.currentAsk[0], (pair.maxAmount * -1));
+        
+        console.log(`${Date.now()} - [${pair.base}] Orders: 
+                    [${pair.orders[0].price}, ${pair.orders[0].amount}] ASK
+                    [${pair.orders[1].price}, ${pair.orders[1].amount}] BID
+                    [${pair.orders[2].price}, ${pair.orders[2].amount}] ASK`) 
     }
 
 }
@@ -279,11 +309,9 @@ var opt = {
     transform: true // auto-transform array OBs to OrderBook objects
 };
 
-// TODO: Use hashmap/object
 // TODO: Split main pair into multiple ArbTri objects
+// TODO: store in hashmap/object
 const arb_tETHBTC = new ArbitrageTriangle(opt);
-const arb_tETHEUR = new ArbitrageTriangle(opt);
-
 
 // TODO: Make into function;
 arb_tETHBTC.on('open', () => {
@@ -292,6 +320,7 @@ arb_tETHBTC.on('open', () => {
     arb_tETHBTC._setPairListeners();
 })
 
+// TODO: refactor
 arb_tETHBTC.on('error', (err) => {
     //if (process.argv[4] !== '-v') {
       if(err.code == 10305) {
@@ -306,22 +335,3 @@ arb_tETHBTC.on('error', (err) => {
     //}
 })
 
-arb_tETHEUR.on('open', () => {
-    arb_tETHEUR.setMainPair(new Pair('tETHEUR', arb_tETHEUR));
-    arb_tETHEUR.addPairArray(tpairs_eur,tpairs_eur.length);
-    arb_tETHEUR._setPairListeners();
-})
-
-arb_tETHEUR.on('error', (err) => {
-    //if (process.argv[4] !== '-v') {
-      if(err.code == 10305) {
-        errcounter++;
-        console.error(`${err.event} ${errcounter}: ${err.code} "${err.pair}" "${err.msg}"`)
-      }
-      if(!err.message) {
-        console.error(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`); 
-        errlog.write(`${err.event}: ${err.code} "${err.pair}" "${err.msg}" \n`);
-      }
-      else console.error('error: %s', err.message)
-    //}
-})
