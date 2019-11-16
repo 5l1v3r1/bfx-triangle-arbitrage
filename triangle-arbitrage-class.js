@@ -171,12 +171,13 @@ class ArbitrageTriangle extends WSv2 {
                     Math.abs(orderAmountMain)
                 )
 
+                let profit = 0.0; 
                 if(crossrate !== this.crossrate) {
-                    if(crossrate >= 1.00)
+                    if(crossrate >= 1 + profit)
                         console.log(`${Date.now()} - [ ${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)} ] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs.maxAmount}`)
                     else 
                         console.log(`${Date.now()} - [ ${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)} ] xrate: ${chalk.red(crossrate.toFixed(4))} max: ${this.maxAmount}`)
-                    this.createSpread(obj.base);
+                    this.createSpread(obj.base); // TODO: Move to crossrate >= 1.00
                 }
                 this.crossrate = crossrate;
             }
