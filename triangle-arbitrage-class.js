@@ -18,7 +18,6 @@ const ansi = require ('ansicolor').nice;
 const style = require ('ansi-styles');
 const chalk = require ('chalk');
 const fs = require('fs');
-const api_obj = require('./apikeys.json'); // TODO: make into env variable
  
 class Pair extends EventEmitter {
 
@@ -300,8 +299,8 @@ class ArbitrageTriangle extends WSv2 {
  * 
  ----------------------------------*/
 
-var API_KEY = api_obj.test.api_key;
-var API_SECRET = api_obj.test.api_secret;
+var API_KEY = process.env.API_KEY;
+var API_SECRET = process.env.API_SECRET
 
 var tpairs = rv2.ethbtc_pairs;
 //var tpairs_eur = rv2.etheur_pairs;
@@ -323,6 +322,8 @@ var opt = {
 const arb_tETHBTC = new ArbitrageTriangle(opt);
 
 arb_tETHBTC.on('open', () => {
+    console.log(`${API_KEY}`)
+    console.log(`${API_SECRET}`)
     arb_tETHBTC.setMainPair(new Pair('tETHBTC', arb_tETHBTC));
     arb_tETHBTC.addPairArray(tpairs,30);
     arb_tETHBTC._setPairListeners();
