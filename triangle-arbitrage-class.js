@@ -43,7 +43,9 @@ class Pair extends EventEmitter {
         this.orderbook; 
         this.currentAsk; 
         this.currentBid; 
-        this.maxAmount; 
+        this.maxAmount;
+        this.checksumCount = 0;
+        this.checksumLimit = 20; // 10 checksum mismatches until resubscribe
     }
 
     _setupSymbols() {
@@ -69,21 +71,30 @@ class Pair extends EventEmitter {
      */
     _orderBookListener() {
         this.ws.onOrderBook( this.orderbook_opts, (ob) => {
-            this.currentAsk = ob.asks[0];
-            this.currentBid = ob.bids[0];
-            
-            this.emit('ob_update', {
-                pair: this.pair,
-                currentAsk: this.currentAsk,
-                currentBid: this.currentBid,
-                maxAmount: this.maxAmount
-            })
-        }) 
+            if(this.ws._orderBooks[this.pair].csVerified) {
+                this.currentAsk = ob.asks[0];
+                this.currentBid = ob.bids[0];
 
-        // TODO: Refactor this like in triangle-arbitrage.js
-        this.ws.onOrderBookChecksum(this.orderbook_opts, (ob) => {
-            console.log(`${this.pair} - checksum ${ob}`)
-        })
+                this.emit('ob_update', {
+                    pair: this.pair,
+                    currentAsk: this.currentAsk,
+                    currentBid: this.currentBid,
+                    maxAmount: this.maxAmount
+                })
+            } else {
+                this.checksumCount++;
+                console.error(`${this.pair} checksum mismatch ${this.checksumCount}`)
+                if(this.checksumCount >= this.checksumLimit) {
+                    let unsub = this.ws.unsubscribeOrderBook(this.pair)
+                    console.log(`Unsubscribed from ${this.pair}`);
+                    if(unsub) {
+                      this.ws.subscribeOrderBook(this.pair);
+                      console.log(`Resubscribed to ${this.pair}`);  
+                      this.checksumCount = 0;
+                    }
+                }
+            }
+        }) 
     }
 
     /**
