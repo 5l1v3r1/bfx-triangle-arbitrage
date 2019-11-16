@@ -80,6 +80,8 @@ class Pair extends EventEmitter {
                 maxAmount: this.maxAmount
             })
         }) 
+
+        // TODO: Refactor this like in triangle-arbitrage.js
         this.ws.onOrderBookChecksum(this.orderbook_opts, (ob) => {
             console.log(`${this.pair} - checksum ${ob}`)
         })
@@ -311,7 +313,12 @@ var opt = {
     transform: true // auto-transform array OBs to OrderBook objects
 };
 
-// TODO: Split main pair into multiple ArbTri objects, store in hashmap/object
+/**
+ // TODO: Move to index.js
+ * - Setup exports from this file. (export to index.js)
+ * - Split main pair into multiple ArbTri objects. (60 subscriptions maximum each)
+ * - Store ArbitrageTriangle instances in hashmap/object per mainpair.
+ */
 
 const arb_tETHBTC = new ArbitrageTriangle(opt);
 
