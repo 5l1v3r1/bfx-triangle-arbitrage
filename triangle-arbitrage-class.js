@@ -1,7 +1,7 @@
 const dotenv = require('dotenv').config()
 const debug = require('debug')('triangle-arbitrage')
 const { EventEmitter } = require('events')
-
+// TODO: fix paths
 const BFX = require('bitfinex-api-node')
 const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const { Order } = require('bfx-api-node-models')
@@ -282,10 +282,10 @@ class ArbitrageTriangle extends WSv2 {
      * @param {Pair[]} pairArray - tpairs
      * @returns {Promise} resolved
      */
-    addPairArray(pairArray, amount) {
+    addPairArray(pairArray, startPoint, amount) {
         return new Promise((resolve,reject) => {
             let i;
-            for(i = 0; i < amount; i++) {
+            for(i = startPoint; i < (startPoint + amount); i++) {
                 if(typeof pairArray[i] == undefined) return;
                 this.addPair(new Pair(pairArray[i], this));
             }
@@ -346,12 +346,12 @@ let instanceCounter = 0;
  * - Store ArbitrageTriangle instances in hashmap/object per mainpair.
  */
 
-function setListeners(arbTri, mainPair, pairArray) {
+function setListeners(arbTri, mainPair, pairArray, i) {
     arbTri.on('open', () => {
         console.log(`${API_KEY}`)
         console.log(`${API_SECRET}`)
         arbTri.setMainPair(new Pair(mainPair, arbTri));
-        arbTri.addPairArray(pairArray,30)
+        arbTri.addPairArray(pairArray, (i*30), 30)
             .then(arbTri._setPairListeners())
     })
     
@@ -362,8 +362,10 @@ function setListeners(arbTri, mainPair, pairArray) {
 
 //BUG: Tpairs import needs to be async
 bus.on('fetched-symbols', (obj) => {
-    tpairs = obj.ethbtc_pairs;
+    pairArray = obj.ethbtc_pairs;
     var arbTriObj = new ArbitrageTriangle(opt);
-    setListeners(arbTriObj, 'tETHBTC', tpairs);
+    for(let i = 0; i < 2; i++) {
+        setListeners(arbTriObj, 'tETHBTC', pairArray,i);
+    }
 })
 
