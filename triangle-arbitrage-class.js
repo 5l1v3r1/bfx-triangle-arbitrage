@@ -10,7 +10,7 @@ const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
 
 const symbolDetails = require('./util/symbol_details')
 const BFX_SETUP = require('./BFX_SETUP')
-
+var bus = require('./eventBus')
 const path = require('path');
 const CRC = require('crc-32');
 const log = require ('ololog').noLocate;
@@ -49,6 +49,7 @@ class Pair extends EventEmitter {
     }
 
     _setupSymbols() {
+        //BUG: undefined this.pair
         try {
             let mid = 4;
             if(this.pair.length > 7) {
@@ -168,7 +169,6 @@ class ArbitrageTriangle extends WSv2 {
 
     _setPairListeners() {
             for(let symbol in this._pairs) {
-            // BUG: (TypeError) Fix method call occuring before _pairs[symbol][0] is defined
             this._pairs[symbol][0].on('ob_update', (order) => {
                 if(order.pair.substring(1,4) == symbol) {
                     this._pairs[symbol].o1 = order;
@@ -185,7 +185,6 @@ class ArbitrageTriangle extends WSv2 {
             })
             }
     }
-    // BUG: Fix obj orders assigning to other symbol
     _calculateArbitrage(obj) {
         if(obj.hasOwnProperty('o1') && obj.hasOwnProperty('o2')) {
             if(obj.o1.pair.substring(1,4) !== obj.o2.pair.substring(1,4)) {
@@ -329,7 +328,7 @@ class ArbitrageTriangle extends WSv2 {
 var API_KEY = process.env.API_KEY;
 var API_SECRET = process.env.API_SECRET
 
-var tpairs = rv2.ethbtc_pairs;
+let tpairs = rv2.ethbtc_pairs;
 var tpairs_eur = rv2.etheur_pairs;
 
 var opt = {
@@ -339,6 +338,7 @@ var opt = {
     transform: true // auto-transform array OBs to OrderBook objects
 };
 
+let instanceCounter = 0;
 /**
  // TODO: Move to index.js
  * - Setup exports from this file. (export to index.js)
@@ -346,30 +346,24 @@ var opt = {
  * - Store ArbitrageTriangle instances in hashmap/object per mainpair.
  */
 
-const arb_tETHBTC = new ArbitrageTriangle(opt);
-const arb_tETHEUR = new ArbitrageTriangle(opt);
-
-arb_tETHBTC.on('open', () => {
-    console.log(`${API_KEY}`)
-    console.log(`${API_SECRET}`)
-    arb_tETHBTC.setMainPair(new Pair('tETHBTC', arb_tETHBTC));
-    arb_tETHBTC.addPairArray(tpairs,30)
-        .then(arb_tETHBTC._setPairListeners());
-})
-
-arb_tETHBTC.on('error', (err) => {
-    console.error('error: %s', err.message)
-})
-
-arb_tETHEUR.on('open', () => {
-    console.log(`${API_KEY}`)
-    console.log(`${API_SECRET}`)
-    arb_tETHEUR.setMainPair(new Pair('tETHEUR', arb_tETHEUR));
-    arb_tETHEUR.addPairArray(tpairs_eur,tpairs_eur.length)
-        .then(arb_tETHEUR._setPairListeners())
+function setListeners(arbTri, mainPair, pairArray) {
+    arbTri.on('open', () => {
+        console.log(`${API_KEY}`)
+        console.log(`${API_SECRET}`)
+        arbTri.setMainPair(new Pair(mainPair, arbTri));
+        arbTri.addPairArray(pairArray,30)
+            .then(arbTri._setPairListeners())
+    })
     
+    arbTri.on('error', (err) => {
+        console.error('error: %s', err.message)
+    })
+}
+
+//BUG: Tpairs import needs to be async
+bus.on('fetched-symbols', (obj) => {
+    tpairs = obj.ethbtc_pairs;
+    var arbTriObj = new ArbitrageTriangle(opt);
+    setListeners(arbTriObj, 'tETHBTC', tpairs);
 })
 
-arb_tETHEUR.on('error', (err) => {
-    console.error('error: %s', err.message)
-})
