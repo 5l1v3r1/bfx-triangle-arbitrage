@@ -285,6 +285,7 @@ class ArbitrageTriangle extends WSv2 {
     addPairArray(pairArray, startPoint, amount) {
         return new Promise((resolve,reject) => {
             let i;
+            console.log(startPoint)
             for(i = startPoint; i < (startPoint + amount); i++) {
                 if(typeof pairArray[i] == undefined) return;
                 this.addPair(new Pair(pairArray[i], this));
@@ -337,7 +338,8 @@ var opt = {
     manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
     transform: true // auto-transform array OBs to OrderBook objects
 };
-
+console.log(`${API_KEY}`)
+console.log(`${API_SECRET}`)
 let instanceCounter = 0;
 /**
  // TODO: Move to index.js
@@ -347,9 +349,11 @@ let instanceCounter = 0;
  */
 
 function setListeners(arbTri, mainPair, pairArray, i) {
+    arbTri.on('once', () => {
+
+    })
+
     arbTri.on('open', () => {
-        console.log(`${API_KEY}`)
-        console.log(`${API_SECRET}`)
         arbTri.setMainPair(new Pair(mainPair, arbTri));
         arbTri.addPairArray(pairArray, (i*30), 30)
             .then(arbTri._setPairListeners())
@@ -360,12 +364,16 @@ function setListeners(arbTri, mainPair, pairArray, i) {
     })
 }
 
-//BUG: Tpairs import needs to be async
+var arbitrageTriangleObject = {}
+
 bus.on('fetched-symbols', (obj) => {
-    pairArray = obj.ethbtc_pairs;
-    var arbTriObj = new ArbitrageTriangle(opt);
-    for(let i = 0; i < 2; i++) {
-        setListeners(arbTriObj, 'tETHBTC', pairArray,i);
+    // TODO: Loop through all tpair arrays
+    //for(var in obj)
+    pairArray = obj.ethbtc_pairs;        
+    arbitrageTriangleObject['tETHBTC'] = []   
+    for(let i = 0; i < 5; i++) {
+        arbitrageTriangleObject['tETHBTC'][i] = new ArbitrageTriangle(opt);
+        setListeners(arbitrageTriangleObject['tETHBTC'][i], 'tETHBTC', pairArray,i);
     }
 })
 
