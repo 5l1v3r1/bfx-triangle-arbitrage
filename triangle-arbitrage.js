@@ -7,7 +7,7 @@ const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const symbolDetails = require('./util/symbol_details')
 const BFX = require('bitfinex-api-node')
 const { Order } = require('bfx-api-node-models')
-const { OrderBook } = require('bfx-api-node-models') // TODO: Remove?
+const { OrderBook } = require('bfx-api-node-models')
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
 const BFX_SETUP = require('./BFX_SETUP')
 const path = require('path');
@@ -43,7 +43,7 @@ var sockets = [];
 var orderArr = []; 
 var alts = [];
 var mainpair = process.argv[3].toUpperCase();
-mainpair = String("t" + mainpair) // TODO: Refactor ^
+mainpair = String("t" + mainpair)
 var mainpair_array = rv2.mainpairs
 var symdetailarr = [];
 var error_counts = [];
@@ -182,7 +182,6 @@ eventEmitter.on('ArbOpp', async (emobj) => {
   
   // ! Check amount equations again
   let TYPE = Order.type.EXCHANGE_LIMIT;
-  // TODO: refactor setAmounts to return amount in alt
   let AMOUNT = setAmounts(alt); // Return amount in alt
   console.log(arbTrades[alt].p3, AMOUNT);
   let ASKAMOUNT = Math.abs(AMOUNT) * -1; // Amount of ALT to buy (negative)
@@ -571,7 +570,6 @@ let arbCalc = async function (alt) {
 function orderListeners(alt_) {
   orderArr[alt_].inProgress == true;
 
-  // TODO: Create overall order listener to check for alt responses.
 
   for(let i = 0; i < 3; i++) {
     let alt = alt_;
@@ -645,7 +643,6 @@ function sendOrder(alt,o) {
   })
 }
 
-// TODO: Returns buy amount of first order (abs)
 function setAmounts(alt) { 
   let sym = String(alt);
   let minmax = symbolDetails.symbol_details_array;
@@ -655,7 +652,6 @@ function setAmounts(alt) {
   return amount;  
 }
 
-// TODO: Fix this??
 function filterIt(arr, searchKey) {
   return arr.filter(obj => Object.keys(obj).some(key => obj[key].includes(searchKey)));
 }

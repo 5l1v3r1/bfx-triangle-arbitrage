@@ -83,7 +83,7 @@ class Pair extends EventEmitter {
                 })
             } else {
                 this.checksumCount++;
-                console.error(`${this.pair} checksum mismatch ${this.checksumCount}`)
+                //console.error(`${this.pair} checksum mismatch ${this.checksumCount}`)
                 if(this.checksumCount >= this.checksumLimit) {
                     let unsub = this.ws.unsubscribeOrderBook(this.pair)
                     console.log(`Unsubscribed from ${this.pair}`);
@@ -95,6 +95,14 @@ class Pair extends EventEmitter {
                 }
             }
         }) 
+    }
+    /**
+     * @description WSv2 Error Listener
+     */
+    _errorListener() {
+        this.ws.on('error', (err) => {
+            console.error(err)
+        })
     }
 
     /**
@@ -159,25 +167,28 @@ class ArbitrageTriangle extends WSv2 {
     }
 
     _setPairListeners() {
-        for(let symbol in this._pairs) {
+            for(let symbol in this._pairs) {
+            // BUG: (TypeError) Fix method call occuring before _pairs[symbol][0] is defined
             this._pairs[symbol][0].on('ob_update', (order) => {
                 if(order.pair.substring(1,4) == symbol) {
                     this._pairs[symbol].o1 = order;
                     this._calculateArbitrage(this._pairs[symbol]);
-                }
+                } else 
+                    console.log(`Oops error? Should be ${symbol} but is ${order.pair}`)
             })
             this._pairs[symbol][1].on('ob_update', (order) => {
                 if(order.pair.substring(1,4) == symbol) {
                     this._pairs[symbol].o2 = order;
                     this._calculateArbitrage(this._pairs[symbol]);
-                }
+                } else 
+                    console.log(`Oops error? Should be ${symbol} but is ${order.pair}`)
             })
-        }
+            }
     }
     // BUG: Fix obj orders assigning to other symbol
     _calculateArbitrage(obj) {
         if(obj.hasOwnProperty('o1') && obj.hasOwnProperty('o2')) {
-            if(obj.o1.pair == 'tOMGETH' && obj.o2.pair == 'tREPBTC' || obj.o1.pair == 'tREPETH' && obj.o2.pair == 'tOMGBTC') {
+            if(obj.o1.pair.substring(1,4) !== obj.o2.pair.substring(1,4)) {
                 console.log(obj)
             }
             ////for-each loop through _pairs
@@ -227,7 +238,7 @@ class ArbitrageTriangle extends WSv2 {
      * @param {Pair} mainpair
      */
     setMainPair(mainpair) {
-        // BUG: Fix mainpair scope (multiple ArbTri objects with different mainpairs)
+        // BUG: Fix mainpair scope (multiple ArbTri objects using the same mainpair)
         this.mainpair = mainpair;
         this.mainpair.on('ob_update', (order) => {
             /**
@@ -270,14 +281,19 @@ class ArbitrageTriangle extends WSv2 {
     /**
      * 
      * @param {Pair[]} pairArray - tpairs
+     * @returns {Promise} resolved
      */
     addPairArray(pairArray, amount) {
-        let i;
-        for(i = 0; i < amount; i++) {
-            if(typeof pairArray[i] == undefined) return;
-            this.addPair(new Pair(pairArray[i], this));
-        }
-        console.log(`Added ${i} pairs to ArbitrageTriangle instance`)
+        return new Promise((resolve,reject) => {
+            let i;
+            for(i = 0; i < amount; i++) {
+                if(typeof pairArray[i] == undefined) return;
+                this.addPair(new Pair(pairArray[i], this));
+            }
+            console.log(`Added ${i} pairs to ArbitrageTriangle instance`)
+            resolve();
+        })
+        
     }
 
     /**
@@ -314,7 +330,7 @@ var API_KEY = process.env.API_KEY;
 var API_SECRET = process.env.API_SECRET
 
 var tpairs = rv2.ethbtc_pairs;
-//var tpairs_eur = rv2.etheur_pairs;
+var tpairs_eur = rv2.etheur_pairs;
 
 var opt = {
     apiKey: API_KEY,
@@ -331,26 +347,29 @@ var opt = {
  */
 
 const arb_tETHBTC = new ArbitrageTriangle(opt);
+const arb_tETHEUR = new ArbitrageTriangle(opt);
 
 arb_tETHBTC.on('open', () => {
     console.log(`${API_KEY}`)
     console.log(`${API_SECRET}`)
     arb_tETHBTC.setMainPair(new Pair('tETHBTC', arb_tETHBTC));
-    arb_tETHBTC.addPairArray(tpairs,30);
-    arb_tETHBTC._setPairListeners();
+    arb_tETHBTC.addPairArray(tpairs,30)
+        .then(arb_tETHBTC._setPairListeners());
 })
 
 arb_tETHBTC.on('error', (err) => {
-    //if (process.argv[4] !== '-v') {
-      if(err.code == 10305) {
-        errcounter++;
-        console.error(`${err.event} ${errcounter}: ${err.code} "${err.pair}" "${err.msg}"`)
-      }
-      if(!err.message) {
-        console.error(`${err.event}: ${err.code} "${err.pair}" "${err.msg}"`); 
-        errlog.write(`${err.event}: ${err.code} "${err.pair}" "${err.msg}" \n`);
-      }
-      else console.error('error: %s', err.message)
-    //}
+    console.error('error: %s', err.message)
 })
 
+arb_tETHEUR.on('open', () => {
+    console.log(`${API_KEY}`)
+    console.log(`${API_SECRET}`)
+    arb_tETHEUR.setMainPair(new Pair('tETHEUR', arb_tETHEUR));
+    arb_tETHEUR.addPairArray(tpairs_eur,tpairs_eur.length)
+        .then(arb_tETHEUR._setPairListeners())
+    
+})
+
+arb_tETHEUR.on('error', (err) => {
+    console.error('error: %s', err.message)
+})
