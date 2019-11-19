@@ -1,16 +1,15 @@
 const dotenv = require('dotenv').config()
 const debug = require('debug')('triangle-arbitrage')
 const { EventEmitter } = require('events')
-// TODO: fix paths
 const BFX = require('bitfinex-api-node')
 const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const { Order } = require('bfx-api-node-models')
 const { OrderBook } = require('bfx-api-node-models') 
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
 
-const symbolDetails = require('./util/symbol_details')
-const BFX_SETUP = require('./util/BFX_SETUP')
-var bus = require('./util/eventBus')
+const symbolDetails = require('./symbol_details')
+const BFX_SETUP = require('./BFX_SETUP')
+var bus = require('./eventBus')
 const path = require('path');
 const CRC = require('crc-32');
 const log = require ('ololog').noLocate;
@@ -205,11 +204,12 @@ class ArbitrageTriangle extends WSv2 {
 
                 let profit = 0.0;
                 if(crossrate !== this.crossrate) {
-                    if(crossrate >= 1 + profit)
+                    if(crossrate >= 1 + profit) {
+                        this.createSpread(obj.base);
                         console.log(`${Date.now()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
+                    }
                     else 
                         console.log(`${Date.now()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
-                    this.createSpread(obj.base); // TODO: Move to crossrate >= 1.00
                 }
                 this.crossrate = crossrate;
             }
@@ -285,13 +285,17 @@ class ArbitrageTriangle extends WSv2 {
     addPairArray(pairArray, startPoint, amount) {
         return new Promise((resolve,reject) => {
             let i;
-            console.log(startPoint)
-            for(i = startPoint; i < (startPoint + amount); i++) {
-                if(typeof pairArray[i] == undefined) return;
-                this.addPair(new Pair(pairArray[i], this));
+            try {
+                console.log(startPoint)
+                for(i = startPoint; i < (startPoint + amount); i++) {
+                    if(typeof pairArray[i] == undefined) resolve('Iterated through pairArray');
+                    this.addPair(new Pair(pairArray[i], this));
+                }
+                console.log(`Added ${i} pairs to ArbitrageTriangle instance`)
+                resolve();
+            } catch(err) {
+                reject(err);
             }
-            console.log(`Added ${i} pairs to ArbitrageTriangle instance`)
-            resolve();
         })
         
     }
@@ -318,63 +322,7 @@ class ArbitrageTriangle extends WSv2 {
 
 }
 
-/**----------------------------------
- * 
- * 
- *  Testing 
- * 
- * 
- ----------------------------------*/
-
-var API_KEY = process.env.API_KEY;
-var API_SECRET = process.env.API_SECRET
-
-let tpairs = rv2.ethbtc_pairs;
-var tpairs_eur = rv2.etheur_pairs;
-
-var opt = {
-    apiKey: API_KEY,
-    apiSecret: API_SECRET,
-    manageOrderBooks: true, // tell the ws client to maintain full sorted OBs
-    transform: true // auto-transform array OBs to OrderBook objects
-};
-console.log(`${API_KEY}`)
-console.log(`${API_SECRET}`)
-let instanceCounter = 0;
-/**
- // TODO: Move to index.js
- * - Setup exports from this file. (export to index.js)
- * - Split main pair into multiple ArbTri objects. (60 subscriptions maximum each)
- * - Store ArbitrageTriangle instances in hashmap/object per mainpair.
- */
-
-function setListeners(arbTri, mainPair, pairArray, i) {
-    arbTri.on('once', () => {
-
-    })
-
-    arbTri.on('open', () => {
-        arbTri.setMainPair(new Pair(mainPair, arbTri));
-        arbTri.addPairArray(pairArray, (i*30), 30) //TODO: Benchmark listeners
-            .then(arbTri._setPairListeners())
-    })
-    
-    arbTri.on('error', (err) => {
-        console.error('error: %s', err.message)
-    })
+module.exports = {
+    ArbitrageTriangle: ArbitrageTriangle,
+    Pair: Pair
 }
-
-var arbitrageTriangleObject = {}
-
-bus.on('fetched-symbols', (obj) => {
-    // TODO: Loop through all tpair arrays
-    for(let market in obj) {
-        pairArray = obj.market;        
-        arbitrageTriangleObject['tETHBTC'] = []   
-        for(let i = 0; i < 5; i++) {
-            arbitrageTriangleObject['tETHBTC'][i] = new ArbitrageTriangle(opt);
-            setListeners(arbitrageTriangleObject['tETHBTC'][i], 'tETHBTC', pairArray,i);
-        }
-    }
-})
-

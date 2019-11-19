@@ -1,9 +1,9 @@
 const BFX = require('bitfinex-api-node')
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
-var api_obj = require('./apikeys.json');
+//var api_obj = require('./apikeys.json');
 
-var API_KEY = api_obj.test.api_key;
-var API_SECRET = api_obj.test.api_secret;
+var API_KEY = process.env.API_KEY;
+var API_SECRET = process.env.API_SECRET;
 
 var bfxArray = [];
 const bfx = new BFX ();
