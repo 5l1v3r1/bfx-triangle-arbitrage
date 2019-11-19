@@ -248,11 +248,11 @@ class ArbitrageTriangle extends WSv2 {
                 if(this.main.currentAsk[0] !== order.currentAsk[0] || this.main.currentAsk[2] !== order.currentAsk[2] ) { //Array comparison
                     this.main = order;
 
-                    console.time(`mainpair ob_update`)
+                    //console.time(`mainpair ob_update`)
                     for(let base in this._pairs) {
                         this._calculateArbitrage(this._pairs[base]);
                     } 
-                    console.timeEnd(`mainpair ob_update`)
+                    //console.timeEnd(`mainpair ob_update`)
                 }
             }
             else
