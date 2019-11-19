@@ -9,8 +9,8 @@ const { OrderBook } = require('bfx-api-node-models')
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
 
 const symbolDetails = require('./util/symbol_details')
-const BFX_SETUP = require('./BFX_SETUP')
-var bus = require('./eventBus')
+const BFX_SETUP = require('./util/BFX_SETUP')
+var bus = require('./util/eventBus')
 const path = require('path');
 const CRC = require('crc-32');
 const log = require ('ololog').noLocate;
@@ -355,7 +355,7 @@ function setListeners(arbTri, mainPair, pairArray, i) {
 
     arbTri.on('open', () => {
         arbTri.setMainPair(new Pair(mainPair, arbTri));
-        arbTri.addPairArray(pairArray, (i*30), 30)
+        arbTri.addPairArray(pairArray, (i*30), 30) //TODO: Benchmark listeners
             .then(arbTri._setPairListeners())
     })
     
@@ -368,12 +368,13 @@ var arbitrageTriangleObject = {}
 
 bus.on('fetched-symbols', (obj) => {
     // TODO: Loop through all tpair arrays
-    //for(var in obj)
-    pairArray = obj.ethbtc_pairs;        
-    arbitrageTriangleObject['tETHBTC'] = []   
-    for(let i = 0; i < 5; i++) {
-        arbitrageTriangleObject['tETHBTC'][i] = new ArbitrageTriangle(opt);
-        setListeners(arbitrageTriangleObject['tETHBTC'][i], 'tETHBTC', pairArray,i);
+    for(let market in obj) {
+        pairArray = obj.market;        
+        arbitrageTriangleObject['tETHBTC'] = []   
+        for(let i = 0; i < 5; i++) {
+            arbitrageTriangleObject['tETHBTC'][i] = new ArbitrageTriangle(opt);
+            setListeners(arbitrageTriangleObject['tETHBTC'][i], 'tETHBTC', pairArray,i);
+        }
     }
 })
 
