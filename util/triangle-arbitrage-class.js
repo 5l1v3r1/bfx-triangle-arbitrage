@@ -2,14 +2,10 @@ const dotenv = require('dotenv').config()
 const debug = require('debug')('triangle-arbitrage')
 const { EventEmitter } = require('events')
 const BFX = require('bitfinex-api-node')
-const rv2 = require('bitfinex-api-node/examples/rest2/symbols')
 const { Order } = require('bfx-api-node-models')
-const { OrderBook } = require('bfx-api-node-models') 
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
 
-const symbolDetails = require('./symbol_details')
-const BFX_SETUP = require('./BFX_SETUP')
-var bus = require('./eventBus')
+//var bus = require('./eventBus')
 const path = require('path');
 const CRC = require('crc-32');
 const log = require ('ololog').noLocate;
@@ -279,14 +275,16 @@ class ArbitrageTriangle extends WSv2 {
 
     /**
      * 
-     * @param {Pair[]} pairArray - tpairs
+     * @param {String[]} pairArray - Pair array
+     * @param {index} - Index of instance
+     * @param {amount} - amount of pairs to add
      * @returns {Promise} resolved
      */
     addPairArray(pairArray, startPoint, amount) {
         return new Promise((resolve,reject) => {
             let i;
             try {
-                for(i = startPoint; i < (startPoint + amount); i++) {
+                for(i = startPoint; i < (amount); i++) {
                     if(typeof pairArray[i] == undefined) resolve('Iterated through pairArray');
                     this.addPair(new Pair(pairArray[i], this));
                 }
