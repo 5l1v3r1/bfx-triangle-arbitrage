@@ -7,6 +7,12 @@
         {
             "type": "node",
             "request": "launch",
+            "name": "symbols.js debug",
+            "program": "${workspaceFolder}/node_modules/bitfinex-api-node/examples/rest2/symbols.js"
+        },
+        {
+            "type": "node",
+            "request": "launch",
             "name": "Launch triangle-arb-class",
             "program": "${workspaceFolder}/triangle-arbitrage-class.js",
             "args": [""]
