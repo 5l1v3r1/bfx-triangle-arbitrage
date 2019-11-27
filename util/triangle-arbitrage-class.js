@@ -158,7 +158,7 @@ class ArbitrageTriangle extends WSv2 {
         super(); 
         this._manageOrderBooks = opts.manageOrderBooks === true;
         this._transform = opts.transform === true;
-        this.open();
+        //this.open();
         this._pairs = {}; 
     }
 
@@ -233,7 +233,6 @@ class ArbitrageTriangle extends WSv2 {
      * @param {Pair} mainpair
      */
     setMainPair(mainpair) {
-        // BUG: Fix mainpair scope (multiple ArbTri objects using the same mainpair)
         this.mainpair = mainpair;
         this.mainpair.on('ob_update', (order) => {
             /**
