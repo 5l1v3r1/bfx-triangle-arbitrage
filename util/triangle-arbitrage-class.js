@@ -78,6 +78,7 @@ class Pair extends EventEmitter {
                     maxAmount: this.maxAmount
                 })
             } else {
+                //TODO: refactor this maybe?
                 this.checksumCount++;
                 //console.error(`${this.pair} checksum mismatch ${this.checksumCount}`)
                 if(this.checksumCount >= this.checksumLimit) {
@@ -239,9 +240,10 @@ class ArbitrageTriangle extends WSv2 {
              * ! Need to calculate against every Pair on update
              * ! Use console.timer() 
              */ 
-            if(typeof this.main !== 'undefined') {
+
+            if(typeof this.main !== 'undefined' && (typeof order.currentAsk !== 'undefined' || typeof order.currentBid !== 'undefined')) {
                 if(this.main.currentAsk[0] !== order.currentAsk[0] || this.main.currentAsk[2] !== order.currentAsk[2] ) { //Array comparison
-                    console.log(`${this.mainpair.pair} - ${order.currentBid[0]} | ${order.currentAsk[0]}`);
+                    //console.log(`${this.mainpair.pair} - ${order.currentBid[0]} | ${order.currentAsk[0]}`); //Enable when all markets are open
                     this.main = order;
                     //console.time(`mainpair ob_update`)
                     for(let base in this._pairs) {
@@ -251,7 +253,7 @@ class ArbitrageTriangle extends WSv2 {
                 }
             }
             else
-                this.main = order;
+                this.main = order; //Why is this here?
         })
     }
 
