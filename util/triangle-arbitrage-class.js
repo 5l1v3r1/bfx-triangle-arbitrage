@@ -236,6 +236,7 @@ class ArbitrageTriangle extends WSv2 {
     setMainPair(mainpair) {
         this.mainpair = mainpair;
         this.mainpair.on('ob_update', (order) => {
+            
             /**
              * ! Need to calculate against every Pair on update
              * ! Use console.timer() 
