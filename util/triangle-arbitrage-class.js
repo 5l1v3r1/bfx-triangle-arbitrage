@@ -46,7 +46,15 @@ class Pair extends EventEmitter {
 
     _setErrorListeners() {
         this.ws.on('error', (err) => { 
-            //console.error(`${this.pair} ${err} (${this.checksumCount}/${this.checksumLimit})`)
+            if(err.hasOwnProperty('code')) {
+                switch(err.code) {
+                    case '10300': console.error(`${this.pair} 10300: Subscription failed (generic)`); break;
+                    case '10301': console.error(`${this.pair} 10301: Already subscribed`); break;
+                    case '10302': console.error(`${this.pair} 10302: Unknown channel`); break;
+                    case '10400': console.error(`${this.pair} 10400: Subscription failed (generic)`); break;
+                    case '10401': console.error(`${this.pair} 10401: Not subscribed`); break;
+                }
+            }
         })
     }
 
@@ -72,7 +80,7 @@ class Pair extends EventEmitter {
      * @description OrderBook Listener
      */
     _orderBookListener() {
-        this.ws.onOrderBook( this.orderbook_opts, (ob) => {
+        this.ws.onOrderBook( this.orderbook_opts, async (ob) => {
             try{
                 if(this.ws._orderBooks[this.pair].csVerified) {
                 this.currentAsk = ob.asks[0];
@@ -85,18 +93,17 @@ class Pair extends EventEmitter {
                     maxAmount: this.maxAmount
                 })
                 } else {
-                //REFACTOR: refactor this maybe?
-                this.checksumCount++;
-                //console.error(`${this.pair} checksum mismatch ${this.checksumCount}`)
-                if(this.checksumCount >= this.checksumLimit) {
-                    let unsub = this.ws.unsubscribeOrderBook(this.pair)
-                    console.log(`Unsubscribed from ${this.pair}`);
-                    if(unsub) {
-                      this.ws.subscribeOrderBook(this.pair);
-                      console.log(`Resubscribed to ${this.pair}`);  
-                      this.checksumCount = 0;
+                    //REFACTOR: refactor this maybe?
+                    this.checksumCount++;
+                    //console.error(`${this.pair} checksum mismatch ${this.checksumCount}`)
+                    if(this.checksumCount >= this.checksumLimit) {
+                        await Promise.all(this.ws.unsubscribeOrderBook(this.pair))
+                        .then(async () => {
+                            await Promise.all(this.ws.subscribeOrderBook(this.pair));
+                            console.log(`Resubscribed to ${this.pair}`);  
+                            this.checksumCount = 0;
+                        })
                     }
-                }
                 }
             } catch(err) {
                 //FIX: remove undefined pairs
