@@ -298,7 +298,7 @@ class ArbitrageTriangle extends WSv2 {
                     if(typeof pairArray[i] == undefined) resolve('Iterated through pairArray');
                     this.addPair(new Pair(pairArray[i], this));
                 }
-                console.log(`Added ${i} pairs to ArbitrageTriangle instance`)
+                console.log(`Added ${amount} pairs to ArbitrageTriangle instance (${startPoint})`)
                 resolve();
             } catch(err) {
                 reject(err);
