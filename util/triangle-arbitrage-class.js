@@ -51,7 +51,6 @@ class Pair extends EventEmitter {
     }
 
     _setupSymbols() {
-        //BUG: undefined this.pair
         try {
             let mid = 4;
             if(this.pair.length > 7) {
@@ -304,12 +303,15 @@ class ArbitrageTriangle extends WSv2 {
     addPairArray(pairArray, startPoint, amount) {
         return new Promise((resolve,reject) => {
             try {
-                for(let i = startPoint; i < (startPoint + amount); i++) {
+                if(startPoint >= pairArray.length) resolve();
+                else{ 
+                    for(let i = startPoint; i < (startPoint + amount); i++) {
                     if(typeof pairArray[i] == undefined) resolve('Iterated through pairArray');
                     this.addPair(new Pair(pairArray[i], this));
+                    }
+                    console.log(`Added ${amount} pairs to ArbitrageTriangle instance (${startPoint})`)
+                    resolve();
                 }
-                console.log(`Added ${amount} pairs to ArbitrageTriangle instance (${startPoint})`)
-                resolve();
             } catch(err) {
                 reject(err);
             }
