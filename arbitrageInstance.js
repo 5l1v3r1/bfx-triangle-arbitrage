@@ -26,6 +26,7 @@ const { ArbitrageTriangle, Pair } = require('./util/triangle-arbitrage-class')
  * - Split main pair into multiple ArbTri objects. (60 subscriptions maximum each)
  * - Store ArbitrageTriangle instances in hashmap/object per mainpair.
  */
+
 var market;
 var myArgs = process.argv.slice(2);
 var API_KEY = process.env.API_KEY;
@@ -72,7 +73,8 @@ bus.on('fetched-symbols', async (obj) => {
 
     //for(var i = 0; i < myArgs[0]; i++) {
         //if(obj.markets[obj.mainpairs[i]].length > 0) 
-        markets.push(market);
+        if(myArgs.length == 0) markets.push(market);
+        else markets.push(obj.mainpairs[myArgs[0]]);
     //}
 
     for(var i = 0; i < markets.length; i++) {
@@ -121,8 +123,6 @@ bus.on('fetched-symbols', async (obj) => {
             console.log('All markets are open');
         });
         
-        //TESTING: activeMarkets
-        //activeMarkets = activeMarkets.splice(0,1); 
         activeMarkets.forEach((market) => {
             for(let i = 0; i < arbitrageTriangleObject[market]['instanceAmount']; i++) {
                 openQueue.push({instance: arbitrageTriangleObject[market]['instances'][i], market: market, index: i}, function (err) {
