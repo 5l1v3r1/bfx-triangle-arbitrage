@@ -35,12 +35,19 @@ class Pair extends EventEmitter {
         this.ws.subscribeOrderBook(this.pair);
         this._orderBookListener(); 
         this._setupSymbols();
+        this._setErrorListeners();
         this.orderbook; 
         this.currentAsk; 
         this.currentBid; 
         this.maxAmount;
         this.checksumCount = 0;
         this.checksumLimit = 20; // 10 checksum mismatches until resubscribe
+    }
+
+    _setErrorListeners() {
+        this.ws.on('error', (err) => {
+            console.err(`${err} (${this.checksumCount}/${this.checksumLimit})`)
+        })
     }
 
     _setupSymbols() {
@@ -164,7 +171,7 @@ class ArbitrageTriangle extends WSv2 {
     }
 
     _setPairListeners() {
-            for(let symbol in this._pairs) {
+        for(let symbol in this._pairs) {
             this._pairs[symbol][0].on('ob_update', (order) => {
                 if(order.pair.substring(1,4) == symbol) {
                     this._pairs[symbol].o1 = order;
@@ -179,8 +186,9 @@ class ArbitrageTriangle extends WSv2 {
                 } else 
                     console.log(`Oops error? Should be ${symbol} but is ${order.pair}`)
             })
-            }
+        }
     }
+
     _calculateArbitrage(obj) {
         if(obj.hasOwnProperty('o1') && obj.hasOwnProperty('o2')) {
             if(obj.o1.pair.substring(1,4) !== obj.o2.pair.substring(1,4)) {
