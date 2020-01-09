@@ -46,7 +46,7 @@ class Pair extends EventEmitter {
 
     _setErrorListeners() {
         this.ws.on('error', (err) => {
-            console.err(`${err} (${this.checksumCount}/${this.checksumLimit})`)
+            console.error(`${err} (${this.checksumCount}/${this.checksumLimit})`)
         })
     }
 
