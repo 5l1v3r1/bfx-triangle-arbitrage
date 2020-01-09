@@ -244,7 +244,7 @@ class ArbitrageTriangle extends WSv2 {
 
             if(typeof this.main !== 'undefined' && (typeof order.currentAsk !== 'undefined' || typeof order.currentBid !== 'undefined')) {
                 if(this.main.currentAsk[0] !== order.currentAsk[0] || this.main.currentAsk[2] !== order.currentAsk[2] ) { //Array comparison
-                    //console.log(`${this.mainpair.pair} - ${order.currentBid[0]} | ${order.currentAsk[0]}`); //Enable when all markets are open
+                    //console.log(`${this.mainpair.pair} - ${order.currentBid[0]} | ${order.currentAsk[0]}`); //TESTING:Enable when all markets are open
                     this.main = order;
                     //console.time(`mainpair ob_update`)
                     for(let base in this._pairs) {
