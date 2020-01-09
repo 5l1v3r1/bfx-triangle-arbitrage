@@ -162,6 +162,7 @@ bus.on('markets-init', async (activeMarkets) => {
         console.log(`Markets created.\n`)
     })
 
+    arbitrageTriangleObject.activeMarkets = activeMarkets;
     await bus.emit('pairs-init', activeMarkets);
 })
 
@@ -186,9 +187,16 @@ console.log(`API_SECRET: ${secret.yellow}`)
 
 //TODO: Add SIGINT to disconnect from ws
 process.on('SIGINT', async function() {
-    console.log('SIGINT - Doing clean-up.')
-    console.log(`unsubscribing from pairs`)
-    process.exit();
+    console.log('SIGINT - Doing clean-up.');
+    console.log(`Closing connections`);
+    
+    //REVISE: Each arbitrageInstance only has one market??
+    await Promise.all(Promise.map(arbitrageTriangleObject[market]['instances'], instance => {
+        instance.close();
+    })).then(() => {
+        console.log(`All markets closed`)
+        process.exit();
+    });
 });
   
 module.exports = function (options) {
@@ -197,8 +205,7 @@ module.exports = function (options) {
     
     bus.on('arbTriObj-init', (a) => {
         module.arbitrageTriangleObject = arbitrageTriangleObject;
-        bus.emit('test')
+        bus.emit('test');
     })
-
     return module;
 };
