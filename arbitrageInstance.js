@@ -173,6 +173,7 @@ bus.on('pairs-init', async (activeMarkets) => {
         })
     }).then( () => {
         console.log(`Initialized`)
+        bus.emit('arbTriObj-init')
     })
 
 })
@@ -191,5 +192,13 @@ process.on('SIGINT', async function() {
 });
   
 module.exports = function (options) {
-    market = options.market;
+    market = options.market; //Set instance market.
+    var module = {};
+    
+    bus.on('arbTriObj-init', (a) => {
+        module.arbitrageTriangleObject = arbitrageTriangleObject;
+        bus.emit('test')
+    })
+
+    return module;
 };
