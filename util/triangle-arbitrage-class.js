@@ -45,8 +45,8 @@ class Pair extends EventEmitter {
     }
 
     _setErrorListeners() {
-        this.ws.on('error', (err) => {
-            console.error(`${err} (${this.checksumCount}/${this.checksumLimit})`)
+        this.ws.on('error', (err) => { 
+            //console.error(`${this.pair} ${err} (${this.checksumCount}/${this.checksumLimit})`)
         })
     }
 
@@ -74,7 +74,8 @@ class Pair extends EventEmitter {
      */
     _orderBookListener() {
         this.ws.onOrderBook( this.orderbook_opts, (ob) => {
-            if(this.ws._orderBooks[this.pair].csVerified) {
+            try{
+                if(this.ws._orderBooks[this.pair].csVerified) {
                 this.currentAsk = ob.asks[0];
                 this.currentBid = ob.bids[0];
 
@@ -84,7 +85,7 @@ class Pair extends EventEmitter {
                     currentBid: this.currentBid,
                     maxAmount: this.maxAmount
                 })
-            } else {
+                } else {
                 //TODO: refactor this maybe?
                 this.checksumCount++;
                 //console.error(`${this.pair} checksum mismatch ${this.checksumCount}`)
@@ -97,6 +98,10 @@ class Pair extends EventEmitter {
                       this.checksumCount = 0;
                     }
                 }
+                }
+            } catch(err) {
+                //FIX: remove undefined pairs
+                //console.error(err)
             }
         }) 
     }
@@ -171,21 +176,25 @@ class ArbitrageTriangle extends WSv2 {
     }
 
     _setPairListeners() {
-        for(let symbol in this._pairs) {
-            this._pairs[symbol][0].on('ob_update', (order) => {
-                if(order.pair.substring(1,4) == symbol) {
-                    this._pairs[symbol].o1 = order;
-                    this._calculateArbitrage(this._pairs[symbol]);
-                } else 
-                    console.log(`Oops error? Should be ${symbol} but is ${order.pair}`)
-            })
-            this._pairs[symbol][1].on('ob_update', (order) => {
-                if(order.pair.substring(1,4) == symbol) {
-                    this._pairs[symbol].o2 = order;
-                    this._calculateArbitrage(this._pairs[symbol]);
-                } else 
-                    console.log(`Oops error? Should be ${symbol} but is ${order.pair}`)
-            })
+        try{
+            for(let symbol in this._pairs) {
+                this._pairs[symbol][0].on('ob_update', (order) => {
+                    if(order.pair.substring(1,4) == symbol) {
+                        this._pairs[symbol].o1 = order;
+                        this._calculateArbitrage(this._pairs[symbol]);
+                    } else 
+                        console.log(`Oops error? Should be ${symbol} but is ${order.pair}`)
+                })
+                this._pairs[symbol][1].on('ob_update', (order) => {
+                    if(order.pair.substring(1,4) == symbol) {
+                        this._pairs[symbol].o2 = order;
+                        this._calculateArbitrage(this._pairs[symbol]);
+                    } else 
+                        console.log(`Oops error? Should be ${symbol} but is ${order.pair}`)
+                })
+            }
+        } catch(err) {
+            console.error(err);
         }
     }
 
@@ -243,14 +252,13 @@ class ArbitrageTriangle extends WSv2 {
      */
     setMainPair(mainpair) {
         this.mainpair = mainpair;
-        this.mainpair.on('ob_update', (order) => {
-            
+        this.mainpair.on('ob_update', (order) => {   
             /**
              * ! Need to calculate against every Pair on update
              * ! Use console.timer() 
              */ 
-
-            if(typeof this.main !== 'undefined' && (typeof order.currentAsk !== 'undefined' || typeof order.currentBid !== 'undefined')) {
+            try {
+                if(typeof this.main !== 'undefined' && (typeof order.currentAsk !== 'undefined' || typeof order.currentBid !== 'undefined')) {
                 if(this.main.currentAsk[0] !== order.currentAsk[0] || this.main.currentAsk[2] !== order.currentAsk[2] ) { //Array comparison
                     //console.log(`${this.mainpair.pair} - ${order.currentBid[0]} | ${order.currentAsk[0]}`); //TESTING:Enable when all markets are open
                     this.main = order;
@@ -260,9 +268,12 @@ class ArbitrageTriangle extends WSv2 {
                     } 
                     //console.timeEnd(`mainpair ob_update`)
                 }
+                }
+                else
+                    this.main = order; //Why is this here?
+            } catch(err) {
+                console.error(err);
             }
-            else
-                this.main = order; //Why is this here?
         })
     }
 
@@ -293,7 +304,7 @@ class ArbitrageTriangle extends WSv2 {
     addPairArray(pairArray, startPoint, amount) {
         return new Promise((resolve,reject) => {
             try {
-                for(let i = startPoint; i < (amount); i++) {
+                for(let i = startPoint; i < (startPoint + amount); i++) {
                     if(typeof pairArray[i] == undefined) resolve('Iterated through pairArray');
                     this.addPair(new Pair(pairArray[i], this));
                 }
