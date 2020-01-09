@@ -194,5 +194,4 @@ process.on('SIGINT', async function() {
   
 module.exports = function (options) {
     market = options.market;
-    return 
 };
