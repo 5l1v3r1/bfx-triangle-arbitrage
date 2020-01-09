@@ -327,18 +327,23 @@ class ArbitrageTriangle extends WSv2 {
      * @param {String} base - base symbol for arbitrage cycle.
      */
     createSpread(base) {
+        //REVISE: createSpread()
         let pair = this._pairs[base];
 
         pair['orders'][0] = pair[0].makeOrder(pair.o1.currentAsk[0], (pair.maxAmount * -1));
         pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.maxAmount);
         pair['orders'][2] = this.mainpair.makeOrder(this.main.currentAsk[0], (pair.maxAmount * -1));
         
-        //console.log(`${Date.now()} - [${pair.base}] Orders: 
-        //            [${pair.orders[0].price}, ${pair.orders[0].amount}] ASK
-        //            [${pair.orders[1].price}, ${pair.orders[1].amount}] BID
-        //            [${pair.orders[2].price}, ${pair.orders[2].amount}] ASK`) 
+        console.log(`${Date.now()} - [${pair.base}] Orders: 
+                    [${pair.orders[0].price}, ${pair.orders[0].amount}] ASK
+                    [${pair.orders[1].price}, ${pair.orders[1].amount}] BID
+                    [${pair.orders[2].price}, ${pair.orders[2].amount}] ASK`) 
     }
 
+    sendOrders() {
+        //send pair orders with pair._sendOrder method.
+        //Use async queue to for correct ordering.
+    }
 }
 
 module.exports = {
