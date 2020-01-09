@@ -55,7 +55,7 @@ const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit a
  * 
  *  Process Arguments
  * 
- *  TODO: Add argument definitions
+ *  OLD-TODO: Add argument definitions
  * ? disable verbose mode (logging of errors): [ -v ] (on by defualt)
  * ? asdasdasdasd
  * 
@@ -73,9 +73,9 @@ const eventEmitter = new EventEmitter(); // ? Internal Events i.e arbCalc emit a
  *  ? eventEmitter - internal event manager for triangle-arbitrage.
  * 
  *  Will try to develop more along this event driven approach.
- *  TODO: Write documentation on internal eventEmitter.
- *  TODO: Add console input if apikeys.json is empty. (Make internal listener) 
- *  TODO: Handle cancelled orders in eventEmitter. (orderCancelled)
+ *  OLD-TODO: Write documentation on internal eventEmitter.
+ *  OLD-TODO: Add console input if apikeys.json is empty. (Make internal listener) 
+ *  OLD-TODO: Handle cancelled orders in eventEmitter. (orderCancelled)
  * 
  **/
 
@@ -140,7 +140,7 @@ eventEmitter.on('closed', function(symbol,opptime) {
   console.log(chalk.yellow(`${symbol} Opportunity closed. Lasted ${opptime/1000} seconds`));
 })
 
-// TODO: Handle closed orders here
+// OLD-TODO: Handle closed orders here
 eventEmitter.on('orderclosed', (response) =>{
   let orderno = response.orderno, alt = response.alt;
   
@@ -177,8 +177,8 @@ eventEmitter.on('ArbOpp', async (emobj) => {
   
   let isStaging = true; // ! Set to true for stagin
       
-  let initialBaseBal = balances[0].balance, finalBaseBal; // TODO: Track change in balance
-  let tradingAltAmount = 0.02; // TODO: Enable chosen trading amount
+  let initialBaseBal = balances[0].balance, finalBaseBal; // OLD-TODO: Track change in balance
+  let tradingAltAmount = 0.02; // OLD-TODO: Enable chosen trading amount
   
   // ! Check amount equations again
   let TYPE = Order.type.EXCHANGE_LIMIT;
@@ -239,7 +239,7 @@ eventEmitter.on('ArbOpp', async (emobj) => {
         catch(err) {
           console.error(`${alt} orders_sent error ${err}`)
         } 
-        // TODO: add timer for ordersSent
+        // OLD-TODO: add timer for ordersSent
         //var endTime = Date.now();
         //console.log(`${value} took ${(endTime-startTime)/1000} seconds`);
         getBal();
@@ -265,7 +265,7 @@ eventEmitter.on('mainpair', (selectedpair) => {
   mainpair = selectedpair;
 })
 
-/* FUNCTIONS */
+/* functions */
 
 function MainPair (mainpair) {
   switch(mainpair) {
