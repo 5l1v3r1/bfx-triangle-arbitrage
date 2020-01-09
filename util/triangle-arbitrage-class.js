@@ -85,7 +85,7 @@ class Pair extends EventEmitter {
                     maxAmount: this.maxAmount
                 })
                 } else {
-                //TODO: refactor this maybe?
+                //REFACTOR: refactor this maybe?
                 this.checksumCount++;
                 //console.error(`${this.pair} checksum mismatch ${this.checksumCount}`)
                 if(this.checksumCount >= this.checksumLimit) {

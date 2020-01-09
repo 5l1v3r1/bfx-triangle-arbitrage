@@ -139,7 +139,6 @@ bus.on('fetched-symbols', async (obj) => {
 })
 
 bus.on('markets-init', async (activeMarkets) => {
-    //TODO: After init, add pairs to instances.
     // Cycle through activeMarkets and iterate through obj.markets to add pairs.
     // Once 30 subscriptions have been made, move onto the next activeMarket.
     console.log(`Initializing pairs.`)
@@ -189,8 +188,7 @@ process.on('SIGINT', async function() {
     console.log('SIGINT - Doing clean-up.')
     console.log(`unsubscribing from pairs`)
     process.exit();
-  });
-
+});
   
 module.exports = function (options) {
     market = options.market;
