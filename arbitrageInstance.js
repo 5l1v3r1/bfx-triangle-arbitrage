@@ -185,14 +185,14 @@ for(var i = 3; i < API_SECRET.length; i++) secret += '*';
 console.log(`API_KEY: ${API_KEY.yellow}`)
 console.log(`API_SECRET: ${secret.yellow}`)
 
-//TODO: Add SIGINT to disconnect from ws
 process.on('SIGINT', async function() {
     console.log('SIGINT - Doing clean-up.');
     console.log(`Closing connections`);
     
     //REVISE: Each arbitrageInstance only has one market??
     await Promise.all(Promise.map(arbitrageTriangleObject[market]['instances'], instance => {
-        instance.close();
+        let isClosed = instance.close();
+        return isClosed;
     })).then(() => {
         console.log(`All markets closed`)
         process.exit();
