@@ -43,6 +43,7 @@ class Pair extends EventEmitter {
         this.maxAmount;
         this.checksumCount = 0;
         this.checksumLimit = 20; // 10 checksum mismatches until resubscribe
+        this.isSending = false;
     }
 
     _setErrorListeners() {
@@ -141,8 +142,8 @@ class Pair extends EventEmitter {
      * @param {Order} order
      * @returns {Promise} p - resolves on submit notification.
      */
-    _sendOrder(order) {
-        return this.ws.submitOrder(order);
+    async _sendOrder(order) {
+        return await this.ws.submitOrder(order);
     }
 
 }
@@ -230,10 +231,13 @@ class ArbitrageTriangle extends WSv2 {
                 let profit = 0.0;
                 if(crossrate !== this.crossrate) {
                     //TESTING: need to block sendOrders()
-                    this.createSpread(obj.base);
-                    if(crossrate >= 1 + profit) {
-                        this.createSpread(obj.base);
-                        console.log(`${Date.now()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
+                    if(crossrate >= 0.999 + profit) {
+                        if(this.isSending !== true) {
+                            this.createSpread(obj.base);
+                            console.log(`${Date.now()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
+                        } else {
+                            console.log(`${obj.o1.pair.substring(1,4)} Currently sending orders..`)
+                        }
                     }
                     else 
                         console.log(`${Date.now()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
@@ -348,10 +352,10 @@ class ArbitrageTriangle extends WSv2 {
         pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.maxAmount)
         pair['orders'][2] = this.mainpair.makeOrder(this.main.currentAsk[0], (pair.maxAmount * -1))
         
-        console.log(`${Date.now()} - [${pair.base}] Orders: 
-                [${pair.orders[0].price}, ${pair.orders[0].amount}] ASK
-                [${pair.orders[1].price}, ${pair.orders[1].amount}] BID
-                [${pair.orders[2].price}, ${pair.orders[2].amount}] ASK`)
+        //console.log(`${Date.now()} - [${pair.base}] Orders: 
+        //        [${pair.orders[0].price}, ${pair.orders[0].amount}] ASK
+        //        [${pair.orders[1].price}, ${pair.orders[1].amount}] BID
+        //        [${pair.orders[2].price}, ${pair.orders[2].amount}] ASK`)
         
         let pair_Array = [pair[0], pair[1], this.mainpair];
         await this.sendOrders(pair, pair_Array);
@@ -362,22 +366,49 @@ class ArbitrageTriangle extends WSv2 {
      * @param {String} pair this._pairs array
      * @param {Array} pairArray Array of pairs + mainpair objects
      */
-    sendOrders(pair, pairArray) {
+    async sendOrders(pair, pairArray) {
+        this.isSending = true;
         //send pair orders with pair._sendOrder method.
         //Use async queue to for correct ordering.
+        const timeout = ms => new Promise(res => setTimeout(res, ms));
 
-        let orderQueue = async.queue((task, callback) => {
+        let orderQueue = async.queue(async function (task, callback) {
+            console.log(`\n${pairArray[0].pair} -> ${pairArray[1].pair} -> ${pairArray[2].pair} `)
             console.log(`current Order: ${task.orderNumber}`);
-            console.log(`pairobj: ${task.pair}`)
+            console.log(`pairobj: ${task.pair.pair}`)
             console.log(`Order: ${task.order}`)
-            
+            //Send Order here (await);
+            //await task.pair._sendOrder(task.order);
+            await timeout(3000);
             callback();
+        }, 1);
+
+        orderQueue.drain(() => {
+            this.isSending = false;
+            console.log(`${pairArray[0].pair} -> ${pairArray[1].pair} -> ${pairArray[2].pair} `)
+            console.log(`order queue drained`)
         })
         
-        pairArray.forEach(pairobj => {
-            orderQueue.push({pair: pairobj, orderNumber: pairArray.indexOf(pairobj), order: pair['orders'][pairArray.indexOf(pairobj)]}, (err) => {
-                if(err) console.error(err);
-                else console.log(`Order added to queue`);
+        await pairArray.forEach(pairobj => {
+            orderQueue.push({pair: pairobj, orderNumber: pairArray.indexOf(pairobj), order: pair['orders'][pairArray.indexOf(pairobj)]}, async function (err) {
+                if(err) {
+                    console.error(err);
+                    console.error(`Killing order queue ${pairArray[0].base}`);
+                    await orderQueue.kill();
+                    this.isSending = false;
+                    console.error(`Killed order queue ${pairArray[0].base}`);
+                }
+                else {
+                    if(orderQueue.idle() == true) {
+                        console.log(`${pairArray[0].pair} -> ${pairArray[1].pair} -> ${pairArray[2].pair} `)
+                        console.log(`All orders sent!`)
+                        this.isSending = false;
+                    } else {
+                        console.log(`${pairArray[0].pair} -> ${pairArray[1].pair} -> ${pairArray[2].pair} `)
+                        console.log(`Sent order!\n`);
+                    }
+                }
+                
             })
         })
     }

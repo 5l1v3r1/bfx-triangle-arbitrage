@@ -38,6 +38,16 @@
             "name": "Launch Program",
             "program": "${workspaceFolder}\\triangle-arbitrage.js",
             "args": ["1", "btceur"]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Index 2",
+            "program": "${workspaceFolder}/index.js",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "args": ["2"]
         }
     ]
 }

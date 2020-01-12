@@ -56,7 +56,7 @@ const timeout = ms => new Promise(res => setTimeout(res, ms));
 
 
 /**
- * @description Sets Listeners for ArbitrageTriangle objects. 
+ * @description Sets Listeners for ArbitrageTriangle objects (30 subscriptions per ArbTriangle Instance, multiple ArbTriangle instances within one arbitrageInstance). 
  * 
  * @param {ArbitrageTriangle} instance - instance of ArbitrageTriangle (WSv2)
  * @param {Pair} mainPair - selected main pair
@@ -85,7 +85,7 @@ bus.on('fetched-symbols', async (obj) => {
 
         let instanceAmount = Math.ceil(obj.markets[market].length / 30);
         arbitrageTriangleObject[market]['instances'] = [];
-        arbitrageTriangleObject[market]['instanceAmount'] = instanceAmount;
+        arbitrageTriangleObject[market]['instanceAmount'] = instanceAmount; //REVISE: One instance per arbitrageInstance?
         
         for(let i = 0; i < instanceAmount; i++) {
             arbitrageTriangleObject[market]['instances'][i] = new ArbitrageTriangle(opt);
@@ -186,9 +186,8 @@ console.log(`API_KEY: ${API_KEY.yellow}`)
 console.log(`API_SECRET: ${secret.yellow}`)
 
 process.on('SIGINT', async function() {
-    console.log('SIGINT - Doing clean-up.');
     console.log(`Closing connections`);
-    
+    process.exit();
     //REVISE: Each arbitrageInstance only has one market??
     await Promise.all(Promise.map(arbitrageTriangleObject[market]['instances'], instance => {
         let isClosed = instance.close();
