@@ -1,5 +1,6 @@
 const dotenv = require('dotenv').config()
 const debug = require('debug')('triangle-arbitrage')
+const async = require('async')
 const { EventEmitter } = require('events')
 const BFX = require('bitfinex-api-node')
 const { Order } = require('bfx-api-node-models')
@@ -204,6 +205,10 @@ class ArbitrageTriangle extends WSv2 {
         }
     }
 
+    /**
+     * 
+     * @description Calculates arbitrage opp between mainpair and current pairs 
+     */
     _calculateArbitrage(obj) {
         if(obj.hasOwnProperty('o1') && obj.hasOwnProperty('o2')) {
             if(obj.o1.pair.substring(1,4) !== obj.o2.pair.substring(1,4)) {
@@ -224,6 +229,8 @@ class ArbitrageTriangle extends WSv2 {
 
                 let profit = 0.0;
                 if(crossrate !== this.crossrate) {
+                    //TESTING: need to block sendOrders()
+                    this.createSpread(obj.base);
                     if(crossrate >= 1 + profit) {
                         this.createSpread(obj.base);
                         console.log(`${Date.now()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
@@ -246,11 +253,11 @@ class ArbitrageTriangle extends WSv2 {
             this.subscribeOrderBook({symbol: this.altpairs[i], precision: "P0", cbGID: `${this.mainpair}-MAIN`});
     }
 
-    /**
-     * 
-     * @public methods
-     * 
-     */
+/**
+ * 
+ * @public methods
+ * 
+ */
 
     /**
      * @description Set Main Pair
@@ -333,23 +340,46 @@ class ArbitrageTriangle extends WSv2 {
      *  Pair.maxAmount is positive so need to account for this.
      * @param {String} base - base symbol for arbitrage cycle.
      */
-    createSpread(base) {
+    async createSpread(base) {
         //REVISE: createSpread()
-        let pair = this._pairs[base];
-
-        pair['orders'][0] = pair[0].makeOrder(pair.o1.currentAsk[0], (pair.maxAmount * -1));
-        pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.maxAmount);
-        pair['orders'][2] = this.mainpair.makeOrder(this.main.currentAsk[0], (pair.maxAmount * -1));
+        let pair = this._pairs[base]; 
+        
+        pair['orders'][0] = pair[0].makeOrder(pair.o1.currentAsk[0], (pair.maxAmount * -1))
+        pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.maxAmount)
+        pair['orders'][2] = this.mainpair.makeOrder(this.main.currentAsk[0], (pair.maxAmount * -1))
         
         console.log(`${Date.now()} - [${pair.base}] Orders: 
-                    [${pair.orders[0].price}, ${pair.orders[0].amount}] ASK
-                    [${pair.orders[1].price}, ${pair.orders[1].amount}] BID
-                    [${pair.orders[2].price}, ${pair.orders[2].amount}] ASK`) 
+                [${pair.orders[0].price}, ${pair.orders[0].amount}] ASK
+                [${pair.orders[1].price}, ${pair.orders[1].amount}] BID
+                [${pair.orders[2].price}, ${pair.orders[2].amount}] ASK`)
+        
+        let pair_Array = [pair[0], pair[1], this.mainpair];
+        await this.sendOrders(pair, pair_Array);
     }
 
-    sendOrders() {
+    /**
+     * 
+     * @param {String} pair this._pairs array
+     * @param {Array} pairArray Array of pairs + mainpair objects
+     */
+    sendOrders(pair, pairArray) {
         //send pair orders with pair._sendOrder method.
         //Use async queue to for correct ordering.
+
+        let orderQueue = async.queue((task, callback) => {
+            console.log(`current Order: ${task.orderNumber}`);
+            console.log(`pairobj: ${task.pair}`)
+            console.log(`Order: ${task.order}`)
+            
+            callback();
+        })
+        
+        pairArray.forEach(pairobj => {
+            orderQueue.push({pair: pairobj, orderNumber: pairArray.indexOf(pairobj), order: pair['orders'][pairArray.indexOf(pairobj)]}, (err) => {
+                if(err) console.error(err);
+                else console.log(`Order added to queue`);
+            })
+        })
     }
 }
 
