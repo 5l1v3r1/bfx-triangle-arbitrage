@@ -146,6 +146,13 @@ class Pair extends EventEmitter {
         return await this.ws.submitOrder(order);
     }
 
+    /** 
+     * @param {Order} order
+     * @returns {Promise} p - resolves on submit notification.
+     */
+    async _cancelOrder(order) {
+        return await this.ws.cancelOrder(order)
+    }
 }
 
 class ArbitrageTriangle extends WSv2 {
@@ -179,8 +186,16 @@ class ArbitrageTriangle extends WSv2 {
         super(); 
         this._manageOrderBooks = opts.manageOrderBooks === true;
         this._transform = opts.transform === true;
-        //this.open();
+        this._apiKey = opts.apiKey
+        this._apiSecret = opts.apiSecret
         this._pairs = {}; 
+        this.checkAuth();
+    }
+
+    checkAuth() {
+        this.on('open', () => {
+            this.auth();
+        })
     }
 
     _setPairListeners() {
@@ -228,10 +243,11 @@ class ArbitrageTriangle extends WSv2 {
                     Math.abs(orderAmountMain)
                 )
 
-                let profit = 0.0;
+                let profit = 0.0; //CLIENT: set this from client
+
                 if(crossrate !== this.crossrate) {
                     //TESTING: need to block sendOrders()
-                    if(crossrate >= 0.999 + profit) {
+                    if(crossrate >= 1.0 + profit) {
                         if(this.isSending !== true) {
                             this.createSpread(obj.base);
                             console.log(`${Date.now()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
@@ -378,8 +394,8 @@ class ArbitrageTriangle extends WSv2 {
             console.log(`pairobj: ${task.pair.pair}`)
             console.log(`Order: ${task.order}`)
             //Send Order here (await);
-            //await task.pair._sendOrder(task.order);
-            await timeout(3000);
+            await task.pair._sendOrder(task.order);
+            //await timeout(3000);
             callback();
         }, 1);
 
