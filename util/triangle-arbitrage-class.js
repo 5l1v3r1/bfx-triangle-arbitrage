@@ -194,7 +194,9 @@ class ArbitrageTriangle extends WSv2 {
 
     checkAuth() {
         this.on('open', () => {
-            this.auth();
+            this.auth().then( () => {
+                console.log(`Authenticated`)
+            })
         })
     }
 
@@ -237,6 +239,7 @@ class ArbitrageTriangle extends WSv2 {
                 let orderAmount1 = obj.o1.currentAsk[2] * obj.o1.currentAsk[0]; // Amount in ETH
                 let orderAmount2 = (obj.o2.currentBid[2] * obj.o2.currentAsk[0]) / this.main.currentAsk[0]; // Amount in BTC (coverted value to eth)
                 let orderAmountMain = this.main.currentAsk[2] * this.main.currentAsk[0]; // Amount in ETH
+                //FIX: get maxAmount from symbol_details
                 this._pairs[obj.base].maxAmount = Math.min(
                     Math.abs(orderAmount1), 
                     Math.abs(orderAmount2), 
@@ -250,13 +253,13 @@ class ArbitrageTriangle extends WSv2 {
                     if(crossrate >= 1.0 + profit) {
                         if(this.isSending !== true) {
                             this.createSpread(obj.base);
-                            console.log(`${Date.now()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
+                            console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
                         } else {
                             console.log(`${obj.o1.pair.substring(1,4)} Currently sending orders..`)
                         }
                     }
                     else 
-                        console.log(`${Date.now()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
+                        console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
                 }
                 this.crossrate = crossrate;
             }
@@ -390,10 +393,7 @@ class ArbitrageTriangle extends WSv2 {
 
         let orderQueue = async.queue(async function (task, callback) {
             console.log(`\n${pairArray[0].pair} -> ${pairArray[1].pair} -> ${pairArray[2].pair} `)
-            console.log(`current Order: ${task.orderNumber}`);
-            console.log(`pairobj: ${task.pair.pair}`)
-            console.log(`Order: ${task.order}`)
-            //Send Order here (await);
+            console.log(`current Order: ${task.orderNumber} pair: ${task.pair.pair} Order: ${task.order}`);
             await task.pair._sendOrder(task.order);
             //await timeout(3000);
             callback();
