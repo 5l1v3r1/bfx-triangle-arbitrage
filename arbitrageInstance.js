@@ -85,7 +85,7 @@ bus.on('fetched-symbols', async (obj) => {
 
         let instanceAmount = Math.ceil(obj.markets[market].length / 30);
         arbitrageTriangleObject[market]['instances'] = [];
-        arbitrageTriangleObject[market]['instanceAmount'] = instanceAmount; //REVISE: One instance per arbitrageInstance?
+        arbitrageTriangleObject[market]['instanceAmount'] = instanceAmount;
         
         for(let i = 0; i < instanceAmount; i++) {
             arbitrageTriangleObject[market]['instances'][i] = new ArbitrageTriangle(opt);
@@ -102,7 +102,7 @@ bus.on('fetched-symbols', async (obj) => {
 
         return market;      
 
-    }).then( async (activeMarkets) => {
+    }).then(async (activeMarkets) => {
         
         let openQueue = async.queue( async function (task, callback) {
             console.log(`current task: ${task.market} ${task.index} (${openQueue.length()})`);
@@ -202,7 +202,7 @@ console.log(`API_SECRET: ${secret.yellow}`)
 process.on('SIGINT', async function() {
     console.log(`Closing connections`);
     process.exit();
-    //REVISE: Each arbitrageInstance only has one market??
+
     await Promise.all(Promise.map(arbitrageTriangleObject[market]['instances'], instance => {
         let isClosed = instance.close();
         return isClosed;
@@ -218,15 +218,17 @@ module.exports = function (options) {
     
     bus.on('arbTriObj-init', (a) => {
         module.arbitrageTriangleObject = arbitrageTriangleObject;
-        bus.emit('test');
     })
     
     bus.on('gotBalances', (bal) => {
         module.balances = bal;
     })
 
-    bus.on('data', (data) => {
-        //export data for each pair
+    bus.on('calcArbData', (data) => {
+        let base = data.symbol;
+        module.data = [];
+        module.data[base] = data;
+        bus.emit('arbData', module.data);
     })
 
     return module;
