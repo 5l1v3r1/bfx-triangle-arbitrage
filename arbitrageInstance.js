@@ -147,7 +147,16 @@ bus.on('markets-init', async (activeMarkets) => {
         let symbolArray = symbolObject.markets[market];
         let marketQueue = async.queue( async (task, callback) => {
             console.log(`current task: ${task.market} ${task.instanceIndex} (${marketQueue.length()})`);
-            await task.instance.addPairArray(symbolArray, ((task.instanceIndex+1)*30), 30);
+            let indexPosition = ((task.instanceIndex+1)*30);
+            let amount = 30; 
+
+            if((symbolArray.length - indexPosition) < amount){
+                amount = (symbolArray.length - indexPosition);
+            }
+
+            if(indexPosition < symbolArray.length){
+                await task.instance.addPairArray(symbolArray, indexPosition, amount); 
+            }
             callback();
         })
         
