@@ -5,6 +5,8 @@ const { EventEmitter } = require('events')
 const BFX = require('bitfinex-api-node')
 const { Order } = require('bfx-api-node-models')
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
+var bus = require('./eventBus');//REVISE: Do I need this?
+
 
 //var bus = require('./eventBus')
 const path = require('path');
@@ -192,7 +194,9 @@ class ArbitrageTriangle extends WSv2 {
         this.balances = [];
         this.checkAuth();
     }
-
+    /**
+     * @description Authenticates ws instance.
+     */
     checkAuth() {
         this.on('open', () => {
             this.auth().then( () => {
@@ -201,6 +205,9 @@ class ArbitrageTriangle extends WSv2 {
         })
     }
 
+    /**
+     * @description 
+     */
     async getBal() {
         return new Promise( async (resolve, reject) => {
             await this.onWalletSnapshot('', (bal) => { 
@@ -274,6 +281,7 @@ class ArbitrageTriangle extends WSv2 {
                 let profit = 0.0; //CLIENT: set this from client
 
                 if(crossrate !== this.crossrate) {
+                    bus.emit('calcArbData', { symbol: obj.base, pairs: obj, mainpair: this.mainpair, crossrate: crossrate, maxAmount: null});//TODO: Tidy
                     if(crossrate >= 1.0 + profit) {
                         if(this.isSending == false) {
                             this.createSpread(obj.base); //REVISE: Add updateOrder capabilities to this?
@@ -320,7 +328,7 @@ class ArbitrageTriangle extends WSv2 {
             try {
                 if(typeof this.main !== 'undefined' && (typeof order.currentAsk !== 'undefined' || typeof order.currentBid !== 'undefined')) {
                 if(this.main.currentAsk[0] !== order.currentAsk[0] || this.main.currentAsk[2] !== order.currentAsk[2] ) { //Array comparison
-                    //console.log(`${this.mainpair.pair} - ${order.currentBid[0]} | ${order.currentAsk[0]}`); //TESTING:Enable when all markets are open
+                    //console.log(`${this.mainpair.pair} - ${order.currentBid[0]} | ${order.currentAsk[0]}`);
                     this.main = order;
                     //console.time(`mainpair ob_update`)
                     for(let base in this._pairs) {
@@ -418,7 +426,7 @@ class ArbitrageTriangle extends WSv2 {
         let orderQueue = async.queue(async function (task, callback) {
             console.log(`\n${pairArray[0].pair} -> ${pairArray[1].pair} -> ${pairArray[2].pair} `)
             console.log(`current Order: ${task.orderNumber} pair: ${task.pair.pair} Order: ${task.order}`);
-            await task.pair._sendOrder(task.order);
+            //await task.pair._sendOrder(task.order);
             //await timeout(3000);
             callback();
         }, 1);
