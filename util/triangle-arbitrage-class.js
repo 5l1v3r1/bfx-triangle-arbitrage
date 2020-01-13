@@ -189,6 +189,7 @@ class ArbitrageTriangle extends WSv2 {
         this._apiKey = opts.apiKey
         this._apiSecret = opts.apiSecret
         this._pairs = {}; 
+        this.balances = [];
         this.checkAuth();
     }
 
@@ -198,6 +199,29 @@ class ArbitrageTriangle extends WSv2 {
                 console.log(`Authenticated`)
             })
         })
+    }
+
+    async getBal() {
+        return new Promise( async (resolve, reject) => {
+            await this.onWalletSnapshot('', (bal) => { 
+            
+                try{
+                    this.amount_currencies = bal.length;
+                    //if (this.amount_currencies > 0) 
+                    console.log(`\n${chalk.green('Balances Snapshot')} ${Date.now()}`)
+                    console.log(`${this.amount_currencies} currencies`)
+                    
+                    for(var i = 0; i<this.amount_currencies; i++) { 
+                        this.balances[i] = bal[i]; 
+                      console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
+                    }
+                    resolve(this.balances);
+                } catch (err) {
+                    reject(err);
+                }
+            })
+            
+        })           
     }
 
     _setPairListeners() {
@@ -249,10 +273,9 @@ class ArbitrageTriangle extends WSv2 {
                 let profit = 0.0; //CLIENT: set this from client
 
                 if(crossrate !== this.crossrate) {
-                    //TESTING: need to block sendOrders()
                     if(crossrate >= 1.0 + profit) {
-                        if(this.isSending !== true) {
-                            this.createSpread(obj.base);
+                        if(this.isSending == false) {
+                            this.createSpread(obj.base); //REVISE: Add updateOrder capabilities to this?
                             console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
                         } else {
                             console.log(`${obj.o1.pair.substring(1,4)} Currently sending orders..`)

@@ -107,6 +107,11 @@ bus.on('fetched-symbols', async (obj) => {
         let openQueue = async.queue( async function (task, callback) {
             console.log(`current task: ${task.market} ${task.index} (${openQueue.length()})`);
             await task.instance.open();
+            if(task.index == 0) {
+                await task.instance.getBal().then( () => {
+                    bus.emit(`gotBalances`, task.instance.balances);
+                })
+            }
             await timeout(500);
             callback(null,openQueue.length());
         }, 1);
@@ -215,5 +220,10 @@ module.exports = function (options) {
         module.arbitrageTriangleObject = arbitrageTriangleObject;
         bus.emit('test');
     })
+    
+    bus.on('gotBalances', (bal) => {
+        module.balances = bal;
+    })
+
     return module;
 };
