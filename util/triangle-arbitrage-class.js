@@ -251,12 +251,13 @@ class ArbitrageTriangle extends WSv2 {
      * 
      * @description Calculates arbitrage opp between mainpair and current pairs 
      */
+    //TODO: bus emit from here
     _calculateArbitrage(obj) {
         if(obj.hasOwnProperty('o1') && obj.hasOwnProperty('o2')) {
             if(obj.o1.pair.substring(1,4) !== obj.o2.pair.substring(1,4)) {
                 console.log(obj)
             }
-            ////for-each loop through _pairs
+
             if(typeof obj.o1 !== 'undefined' && typeof obj.o2 !== 'undefined' && typeof this.main !== 'undefined') {
                 let crossrate = ((1/obj.o1.currentAsk[0]) * obj.o2.currentBid[0]) / this.main.currentAsk[0]
 

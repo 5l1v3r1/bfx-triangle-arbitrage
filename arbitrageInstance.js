@@ -225,5 +225,9 @@ module.exports = function (options) {
         module.balances = bal;
     })
 
+    bus.on('data', (data) => {
+        //export data for each pair
+    })
+
     return module;
 };
