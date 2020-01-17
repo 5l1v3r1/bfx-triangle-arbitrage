@@ -210,8 +210,23 @@ class ArbitrageTriangle extends WSv2 {
      */
     async getBal() {
         return new Promise( async (resolve, reject) => {
-            await this.onWalletSnapshot('', (bal) => { 
-            
+            await this.onWalletSnapshot('', (bal) => {      
+                try{
+                    this.amount_currencies = bal.length;
+                    //if (this.amount_currencies > 0) 
+                    console.log(`\n${chalk.green('Balances Snapshot')} ${Date.now()}`)
+                    console.log(`${this.amount_currencies} currencies`)
+                    
+                    for(var i = 0; i<this.amount_currencies; i++) { 
+                        this.balances[i] = bal[i]; 
+                      console.log( bal[i]['currency'].green, bal[i]['type'], chalk.yellow(bal[i]['balance']));
+                    }
+                    resolve(this.balances);
+                } catch (err) {
+                    reject(err);
+                }
+            })
+            await this.onWalletUpdate('', (bal) => {      
                 try{
                     this.amount_currencies = bal.length;
                     //if (this.amount_currencies > 0) 
@@ -230,7 +245,7 @@ class ArbitrageTriangle extends WSv2 {
             
         })           
     }
-
+    
     _setPairListeners() {
         try{
             for(let symbol in this._pairs) {
