@@ -49,5 +49,14 @@
             ],
             "args": ["2"]
         }
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Just Index",
+            "program": "${workspaceFolder}/index.js",
+            "skipFiles": [
+                "<node_internals>/**"
+            ]
+        }
     ]
 }

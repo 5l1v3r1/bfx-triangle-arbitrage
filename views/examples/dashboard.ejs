@@ -22,16 +22,16 @@
 
 <body class="">
 
-        <script src="/socket.io/socket.io.js"></script>
-        <script> 
-          var socket = io.connect('http://127.0.0.1:7000')
-          var ob_array = [];
-          
-          socket.on('message', function (data) {
-            alert(data.text);
-          })
-        
-          socket.on('ob', function(ob) {
+  <script src="/socket.io/socket.io.js"></script>
+  <script> 
+    var socket = io.connect('http://127.0.0.1:7000')
+    var ob_array = [];
+    
+    socket.on('message', function (data) {
+      alert(data.text);
+    })
+  
+    socket.on('ob', function(ob) {
             var symbolId = ob.symbol;
             var alt = symbolId.substring(0,4);
             var eth = alt + 'ETH', btc = alt + 'BTC';
@@ -52,12 +52,16 @@
               document.getElementById(mainask).innerHTML = ob_array[symbolId]['asks'][0][0];
             }
           })
-          
-          if(typeof balances !== 'undefined') socket.emit('GotBal');
+    
+    socket.on('balance-update', update => {
+      
+    })
+    
+    function getBalances() {
+      socket.emit('get-balances');
+    }
 
-          //match pair to arbTrades pair
-          
-        </script>
+  </script>
          
 
   <div class="wrapper ">
@@ -229,7 +233,9 @@
               <div class="card-footer ">
                 <hr>
                 <div class="stats">
+                  <button onclick="getBalances()">
                   <i class="fa fa-refresh"></i> Update Now
+                  </button>
                 </div>
               </div>
             </div>

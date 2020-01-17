@@ -215,7 +215,11 @@ process.on('SIGINT', async function() {
 module.exports = function (options) {
     market = options.market; //Set instance market.
     var module = {};
-    
+
+    module.getBal = function() {
+        return arbitrageTriangleObject[market].instances[0].getBal();
+    }
+
     bus.on('arbTriObj-init', (a) => {
         module.arbitrageTriangleObject = arbitrageTriangleObject;
     })
