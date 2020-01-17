@@ -281,7 +281,7 @@ class ArbitrageTriangle extends WSv2 {
                 let profit = 0.0; //CLIENT: set this from client
 
                 if(crossrate !== this.crossrate) {
-                    bus.emit('calcArbData', { symbol: obj.base, pairs: obj, mainpair: this.mainpair, crossrate: crossrate, maxAmount: null});//TODO: Tidy
+                    //bus.emit('calcArbData', { symbol: obj.base, pairs: obj, mainpair: this.mainpair, crossrate: crossrate, maxAmount: null});//TODO: Tidy
                     if(crossrate >= 1.0 + profit) {
                         if(this.isSending == false) {
                             this.createSpread(obj.base); //REVISE: Add updateOrder capabilities to this?
