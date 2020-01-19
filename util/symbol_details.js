@@ -18,7 +18,6 @@ request.get(url, async function(err, response, body) {
                 'maximum_order_size': json[i]['maximum_order_size'],
                 'minimum_order_size': json[i]['minimum_order_size'] 
             }
-            //console.log(alt, symbol_details_array[alt])
         }
     }
     module.exports.symbol_details_array = symbol_details_array;

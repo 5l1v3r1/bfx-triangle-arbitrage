@@ -108,6 +108,7 @@ class Pair extends EventEmitter {
                     this.checksumCount++;
                     if(this.checksumCount >= this.checksumLimit) {
                             //BUG: TypeError: Cannot read property 'ws' of undefined
+                            //console.log(this)
                             try {
                                 //async function unsub() {return this.ws.unsubscribeOrderBook(this.pair)};
                                 //unsub().then(async () => {
@@ -303,6 +304,7 @@ class ArbitrageTriangle extends WSv2 {
                 let orderAmount2 = (obj.o2.currentBid[2] * obj.o2.currentAsk[0]) / this.main.currentAsk[0]; // Amount in BTC (coverted value to eth)
                 let orderAmountMain = this.main.currentAsk[2] * this.main.currentAsk[0]; // Amount in ETH
                 
+                //Determine lowest possible current amount of alt
                 this._pairs[obj.base]['currentAmount'] = Math.min(
                     Math.abs(orderAmount1), 
                     Math.abs(orderAmount2), 
@@ -310,22 +312,24 @@ class ArbitrageTriangle extends WSv2 {
                 )
 
                 let profit = 0.0; //CLIENT: set this from client
+                let spreadArray = this.createSpread(obj.base);
 
                 if(crossrate !== this.crossrate) {
                     if(crossrate >= 1.0 + profit) {
                         if(this._pairs[obj.base].currentAmount >= this._pairs[obj.base].minAmount) {
                             if(this.isSending == false) {
-                                this.createSpread(obj.base);
-                                console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].minAmount}${this.mainpair.base} cur: ${this._pairs[obj.base].currentAmount.toFixed(4)}${this.mainpair.base}`)
+                                console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} min: ${this._pairs[obj.base].minAmount}${this.mainpair.base} cur: ${this._pairs[obj.base].currentAmount.toFixed(4)}${this.mainpair.base}`)
+                                this.sendOrders(this._pairs[obj.base],spreadArray);
                             } else {
                                 console.log(`${obj.o1.pair.substring(1,4)} Order in progress`);
-                                //TODO: trigger orderUpdate from WSv2.
+                                //this.updateOrders(this._pairs[obj.base], spreadArray)
+                                //TODO: trigger orderUpdate from WSv2. Need order CIDs
                             }
                         }
 
                     }
                     else 
-                        console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} max: ${this._pairs[obj.base].minAmount}${this.mainpair.base} cur: ${this._pairs[obj.base].currentAmount.toFixed(4)}${this.mainpair.base}`)
+                        console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} min: ${this._pairs[obj.base].minAmount}${this.mainpair.base} cur: ${this._pairs[obj.base].currentAmount.toFixed(4)}${this.mainpair.base}`)
                 }
                 this.crossrate = crossrate;
             }
@@ -361,18 +365,14 @@ class ArbitrageTriangle extends WSv2 {
              */ 
             try {
                 if(typeof this.main !== 'undefined' && (typeof order.currentAsk !== 'undefined' || typeof order.currentBid !== 'undefined')) {
-                if(this.main.currentAsk[0] !== order.currentAsk[0] || this.main.currentAsk[2] !== order.currentAsk[2] ) { //Array comparison
-                    //console.log(`${this.mainpair.pair} - ${order.currentBid[0]} | ${order.currentAsk[0]}`);
+                    if(this.main.currentAsk[0] !== order.currentAsk[0] || this.main.currentAsk[2] !== order.currentAsk[2] ) { //Array comparison
                     this.main = order;
-                    //console.time(`mainpair ob_update`)
                     for(let base in this._pairs) {
                         this._calculateArbitrage(this._pairs[base]);
                     } 
-                    //console.timeEnd(`mainpair ob_update`)
+                 
+                    }
                 }
-                }
-                else
-                    this.main = order; //Why is this here?
             } catch(err) {
                 console.error(err);
             }
@@ -430,22 +430,18 @@ class ArbitrageTriangle extends WSv2 {
      *  - Bid orders take positive amount value.
      *  Pair.maxAmount is positive so need to account for this.
      * @param {String} base - base symbol for arbitrage cycle.
+     * @returns {Array} array of orders
      */
     async createSpread(base) {
-        //REVISE: createSpread()
+
         let pair = this._pairs[base]; 
         
-        pair['orders'][0] = pair[0].makeOrder(pair.o1.currentAsk[0], (pair.maxAmount * -1))
-        pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.maxAmount)
-        pair['orders'][2] = this.mainpair.makeOrder(this.main.currentAsk[0], (pair.maxAmount * -1))
-        
-        //console.log(`${Date.now()} - [${pair.base}] Orders: 
-        //        [${pair.orders[0].price}, ${pair.orders[0].amount}] ASK
-        //        [${pair.orders[1].price}, ${pair.orders[1].amount}] BID
-        //        [${pair.orders[2].price}, ${pair.orders[2].amount}] ASK`)
+        pair['orders'][0] = pair[0].makeOrder(pair.o1.currentAsk[0], (pair.currentAmount * -1))
+        pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.currentAmount)
+        pair['orders'][2] = this.mainpair.makeOrder(this.main.currentAsk[0], (pair.currentAmount * -1))
         
         let pair_Array = [pair[0], pair[1], this.mainpair];
-        await this.sendOrders(pair, pair_Array);
+        return pair_Array;
     }
 
     /**
