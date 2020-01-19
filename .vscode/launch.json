@@ -57,7 +57,7 @@
                 "<node_internals>/**"
             ],
             "args": ["2"]
-        }
+        },
         {
             "type": "node",
             "request": "launch",
