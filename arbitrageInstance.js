@@ -45,7 +45,9 @@ var arbitrageTriangleObject = {} //Stores ArbitrageTriangle Objects
 var symbolObject;
 
 /**
- * Helper functions
+ * -------------------------------------
+ *            Helper functions
+ * --------------------------------------
  */
 
 /**
@@ -91,7 +93,7 @@ bus.on('fetched-symbols', async (obj) => {
             arbitrageTriangleObject[market]['instances'][i] = new ArbitrageTriangle(opt);
 
             arbitrageTriangleObject[market]['instances'][i].on('open', () => {
-                arbitrageTriangleObject[market]['instances'][i].setMainPair(new Pair(market, arbitrageTriangleObject[market]['instances'][i]));
+                arbitrageTriangleObject[market]['instances'][i].setMainPair(new Pair(market, arbitrageTriangleObject[market]['instances'][i]))
                 console.log(`${market} ${i} main pair set!`)
             })
 
@@ -144,8 +146,8 @@ bus.on('fetched-symbols', async (obj) => {
 })
 
 bus.on('markets-init', async (activeMarkets) => {
-    // Cycle through activeMarkets and iterate through obj.markets to add pairs.
-    // Once 30 subscriptions have been made, move onto the next activeMarket.
+    // ? Cycle through activeMarkets and iterate through obj.markets to add pairs.
+    // ? Once 30 subscriptions have been made, move onto the next activeMarket.
     console.log(`Initializing pairs.`)
 
     await Promise.all(Promise.map(activeMarkets, async market => {
@@ -193,6 +195,7 @@ bus.on('pairs-init', async (activeMarkets) => {
 
 })
 
+
 var secret = API_SECRET.substring(0,4);
 for(var i = 3; i < API_SECRET.length; i++) secret += '*';
 
@@ -216,6 +219,7 @@ module.exports = function (options) {
     market = options.market; //Set instance market.
     var module = {};
 
+    //call 'gotBalances' instead
     module.getBal = function() {
         return arbitrageTriangleObject[market].instances[0].getBal();
     }

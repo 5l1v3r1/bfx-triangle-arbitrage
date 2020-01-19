@@ -5,10 +5,8 @@ const { EventEmitter } = require('events')
 const BFX = require('bitfinex-api-node')
 const { Order } = require('bfx-api-node-models')
 const WSv2 = require('bitfinex-api-node/lib/transports/ws2')
-var bus = require('./eventBus');//REVISE: Do I need this?
-
-
-//var bus = require('./eventBus')
+const bus = require('./eventBus');
+const symbol_details = require('./symbol_details')
 const path = require('path');
 const CRC = require('crc-32');
 const log = require ('ololog').noLocate;
@@ -84,39 +82,56 @@ class Pair extends EventEmitter {
      * @description OrderBook Listener
      */
     _orderBookListener() {
-        this.ws.onOrderBook( this.orderbook_opts, async (ob) => {
-            try{
-                if(this.ws._orderBooks[this.pair].csVerified) {
-                this.currentAsk = ob.asks[0];
-                this.currentBid = ob.bids[0];
 
-                this.emit('ob_update', {
-                    pair: this.pair,
-                    currentAsk: this.currentAsk,
-                    currentBid: this.currentBid,
-                    maxAmount: this.maxAmount
-                })
+        if(typeof this['ws'] !== 'undefined') {
+            let onCS, CS;
+            this.ws.onOrderBookChecksum( this.orderbook_opts, async (cs) => {
+            //console.log(`checksum: ${cs}`); //TODO: Make checksum value a field 
+            onCS = cs;
+            })
+
+            this.ws.onOrderBook( this.orderbook_opts, async (ob) => {
+                try {
+                    CS = await ob.checksum();
+                if(onCS == CS) {        
+                    this.currentAsk = ob.asks[0];
+                    this.currentBid = ob.bids[0];
+                    
+                    this.emit('ob_update', {
+                        pair: this.pair,
+                        currentAsk: this.currentAsk,
+                        currentBid: this.currentBid,
+                        maxAmount: this.maxAmount
+                    })
+
                 } else {
-                    //REFACTOR: refactor this maybe?
                     this.checksumCount++;
-                    //console.error(`${this.pair} checksum mismatch ${this.checksumCount}`)
                     if(this.checksumCount >= this.checksumLimit) {
-                        await Promise.all(this.ws.unsubscribeOrderBook(this.pair))
-                        .then(async () => {
-                            await Promise.all(this.ws.subscribeOrderBook(this.pair));
-                            console.log(`Resubscribed to ${this.pair}`);  
-                            this.checksumCount = 0;
-                        })
+                            //BUG: TypeError: Cannot read property 'ws' of undefined
+                            try {
+                                //async function unsub() {return this.ws.unsubscribeOrderBook(this.pair)};
+                                //unsub().then(async () => {
+                                //    await Promise.all(this.ws.subscribeOrderBook(this.pair));
+                                //    console.log(`Resubscribed to ${this.pair}`);  
+                                //    this.checksumCount = 0;
+                                //})
+                            } catch (err) {
+                                console.error(err);
+                            }
                     }
                 }
             } catch(err) {
-                //FIX: remove undefined pairs
-                //console.error(err)
+                console.error(err)
             }
-        }) 
-    }
+            }) 
+        } else {
+            console.log(this)
+        }
+}
+
     /**
      * @description WSv2 Error Listener
+     * @listens Error WSv2
      */
     _errorListener() {
         this.ws.on('error', (err) => {
@@ -273,8 +288,8 @@ class ArbitrageTriangle extends WSv2 {
      * 
      * @description Calculates arbitrage opp between mainpair and current pairs 
      */
-    //TODO: bus emit from here
-    _calculateArbitrage(obj) {
+
+     _calculateArbitrage(obj) {
         if(obj.hasOwnProperty('o1') && obj.hasOwnProperty('o2')) {
             if(obj.o1.pair.substring(1,4) !== obj.o2.pair.substring(1,4)) {
                 console.log(obj)
@@ -286,8 +301,8 @@ class ArbitrageTriangle extends WSv2 {
                 let orderAmount1 = obj.o1.currentAsk[2] * obj.o1.currentAsk[0]; // Amount in ETH
                 let orderAmount2 = (obj.o2.currentBid[2] * obj.o2.currentAsk[0]) / this.main.currentAsk[0]; // Amount in BTC (coverted value to eth)
                 let orderAmountMain = this.main.currentAsk[2] * this.main.currentAsk[0]; // Amount in ETH
-                //FIX: get maxAmount from symbol_details
-                this._pairs[obj.base].maxAmount = Math.min(
+                
+                this._pairs[obj.base]['currentAmount'] = Math.min(
                     Math.abs(orderAmount1), 
                     Math.abs(orderAmount2), 
                     Math.abs(orderAmountMain)
@@ -296,17 +311,20 @@ class ArbitrageTriangle extends WSv2 {
                 let profit = 0.0; //CLIENT: set this from client
 
                 if(crossrate !== this.crossrate) {
-                    //bus.emit('calcArbData', { symbol: obj.base, pairs: obj, mainpair: this.mainpair, crossrate: crossrate, maxAmount: null});//TODO: Tidy
                     if(crossrate >= 1.0 + profit) {
-                        if(this.isSending == false) {
-                            this.createSpread(obj.base); //REVISE: Add updateOrder capabilities to this?
-                            console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
-                        } else {
-                            console.log(`${obj.o1.pair.substring(1,4)} Currently sending orders..`)
+                        if(this._pairs[obj.base].currentAmount >= this._pairs[obj.base].minAmount) {
+                            if(this.isSending == false) {
+                                this.createSpread(obj.base);
+                                console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} max: ${this._pairs[obj.base].minAmount}${this.mainpair.base} cur: ${this._pairs[obj.base].currentAmount.toFixed(4)}${this.mainpair.base}`)
+                            } else {
+                                console.log(`${obj.o1.pair.substring(1,4)} Order in progress`);
+                                //TODO: trigger orderUpdate from WSv2.
+                            }
                         }
+
                     }
                     else 
-                        console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} max: ${this._pairs[obj.base].maxAmount.toFixed(4)}${this.mainpair.base}`)
+                        console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} max: ${this._pairs[obj.base].minAmount}${this.mainpair.base} cur: ${this._pairs[obj.base].currentAmount.toFixed(4)}${this.mainpair.base}`)
                 }
                 this.crossrate = crossrate;
             }
@@ -370,6 +388,8 @@ class ArbitrageTriangle extends WSv2 {
             this._pairs[pair.base] = [2];
             this._pairs[pair.base]['orders'] = [1];
             this._pairs[pair.base]['base'] = pair.base;
+            this._pairs[pair.base]['minAmount'] = symbol_details.symbol_details_array[`t${pair.base}`]['minimum_order_size'];
+            this._pairs[pair.base]['maxAmount'] = symbol_details.symbol_details_array[`t${pair.base}`]['maximum_order_size'];
         }
         if(pair.quote == this.mainpair.base)
             this._pairs[pair.base][0] = pair;
