@@ -7,6 +7,15 @@
         {
             "type": "node",
             "request": "launch",
+            "name": "util/symbol_details",
+            "program": "${workspaceFolder}/util/symbol_details.js",
+            "skipFiles": [
+                "<node_internals>/**"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
             "name": "Index",
             "program": "${workspaceFolder}/index.js",
             "skipFiles": [
