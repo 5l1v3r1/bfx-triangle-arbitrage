@@ -65,7 +65,8 @@
             "program": "${workspaceFolder}/index.js",
             "skipFiles": [
                 "<node_internals>/**"
-            ]
+            ],
+            "args": ["TEST"]
         }
     ]
 }
