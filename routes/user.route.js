@@ -2,7 +2,7 @@
 process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
 
 const auth = require("../middleware/auth");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const { User, validate } = require("../models/user.model");
 const express = require("express");
 const router = express.Router();
