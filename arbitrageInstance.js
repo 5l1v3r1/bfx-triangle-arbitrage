@@ -75,7 +75,10 @@ bus.on('fetched-symbols', async (obj) => {
 
     //for(var i = 0; i < myArgs[0]; i++) {
         //if(obj.markets[obj.mainpairs[i]].length > 0) 
-        if(myArgs.length == 0) markets.push(market);
+        if(myArgs.length == 0) {
+            console.error('No market defined.')
+            process.exit();
+        }
         else markets.push(obj.mainpairs[myArgs[0]]);
     //}
 
