@@ -299,16 +299,23 @@ class ArbitrageTriangle extends WSv2 {
             if(typeof obj.o1 !== 'undefined' && typeof obj.o2 !== 'undefined' && typeof this.main !== 'undefined') {
                 let crossrate = ((1/obj.o1.currentAsk[0]) * obj.o2.currentBid[0]) / this.main.currentAsk[0]
 
-                let orderAmount1 = obj.o1.currentAsk[2] * obj.o1.currentAsk[0]; // Amount in ETH
-                let orderAmount2 = (obj.o2.currentBid[2] * obj.o2.currentAsk[0]) / this.main.currentAsk[0]; // Amount in BTC (coverted value to eth)
-                let orderAmountMain = this.main.currentAsk[2] * this.main.currentAsk[0]; // Amount in ETH
-                
-                //Determine lowest possible current amount of alt
-                this._pairs[obj.base]['currentAmount'] = Math.min(
+                let orderAmount1 = obj.o1.currentAsk[2]; // Amount in alt
+                let orderAmount2 = obj.o2.currentBid[2]; // Amount in alt
+                let orderAmountMain = this.main.currentAsk[2] / obj.o1.currentAsk[0]; // Amount in alt;
+
+                //Determine Lowest amount of alt in all markets.
+                let altAmount = Math.min(  
                     Math.abs(orderAmount1), 
-                    Math.abs(orderAmount2), 
+                    Math.abs(orderAmount2),
                     Math.abs(orderAmountMain)
                 )
+                
+                //altAmount -> altToQuote -> altToBase
+                let altToQuote = altAmount * obj.o2.currentBid[0]; //alt converted to quote (eg. USD)
+                let altToBase = altAmount * obj.o1.currentAsk[0]; //alt amount converted to Base (eg. BTC)
+                this._pairs[obj.base]['currentAltAmount'] = altAmount;
+                this._pairs[obj.base]['currentQuoteAmount'] = altToQuote;
+                this._pairs[obj.base]['currentBaseAmount'] = altToBase;
 
                 let profit = 0.0; //CLIENT: set this from client
                 let spreadArray = this.createSpread(obj.base);
@@ -317,7 +324,7 @@ class ArbitrageTriangle extends WSv2 {
                     if(crossrate >= 1.0 + profit) {
                         if(this._pairs[obj.base].currentAmount >= this._pairs[obj.base].minAmount) {
                             if(this.isSending == false) {
-                                console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} min: ${this._pairs[obj.base].minAmount}${this.mainpair.base} cur: ${this._pairs[obj.base].currentAmount.toFixed(4)}${this.mainpair.base}`)
+                                console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} min: ${this._pairs[obj.base].minAmount}${obj.base} cur: ${chalk.yellow(this._pairs[obj.base].currentAmount.toFixed(4))}${obj.base}`)
                                 this.sendOrders(this._pairs[obj.base],spreadArray);
                             } else {
                                 console.log(`${obj.o1.pair.substring(1,4)} Order in progress`);
@@ -328,7 +335,7 @@ class ArbitrageTriangle extends WSv2 {
 
                     }
                     else 
-                        console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} min: ${this._pairs[obj.base].minAmount}${this.mainpair.base} cur: ${this._pairs[obj.base].currentAmount.toFixed(4)}${this.mainpair.base}`)
+                        console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} min: ${this._pairs[obj.base].minAmount}${obj.base} cur: ${this._pairs[obj.base].currentAmount >= this._pairs[obj.base].minAmount ? chalk.yellow(this._pairs[obj.base].currentAmount.toFixed(4)) : chalk.red(this._pairs[obj.base].currentAmount.toFixed(4))}${obj.base}`)
                 }
                 this.crossrate = crossrate;
             }
@@ -434,9 +441,9 @@ class ArbitrageTriangle extends WSv2 {
 
         let pair = this._pairs[base]; 
         
-        pair['orders'][0] = pair[0].makeOrder(pair.o1.currentAsk[0], (pair.currentAmount * -1))
-        pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.currentAmount)
-        pair['orders'][2] = this.mainpair.makeOrder(this.main.currentAsk[0], (pair.currentAmount * -1))
+        pair['orders'][0] = pair[0].makeOrder(pair.o1.currentAsk[0], (pair.currentAltAmount * -1))
+        pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.currentQuoteAmount)
+        pair['orders'][2] = this.mainpair.makeOrder(this.main.currentAsk[0], (pair.currentBaseAmount * -1))
         
         let pair_Array = [pair[0], pair[1], this.mainpair];
         return pair_Array;
