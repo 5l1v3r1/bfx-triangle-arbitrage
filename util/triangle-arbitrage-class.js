@@ -86,45 +86,44 @@ class Pair extends EventEmitter {
         if(typeof this['ws'] !== 'undefined') {
             let onCS, CS;
             this.ws.onOrderBookChecksum( this.orderbook_opts, async (cs) => {
-            //console.log(`checksum: ${cs}`); //TODO: Make checksum value a field 
-            onCS = cs;
+                onCS = cs;
             })
 
             this.ws.onOrderBook( this.orderbook_opts, async (ob) => {
                 try {
                     CS = await ob.checksum();
-                if(onCS == CS) {        
-                    this.currentAsk = ob.asks[0];
-                    this.currentBid = ob.bids[0];
-                    
-                    this.emit('ob_update', {
-                        pair: this.pair,
-                        currentAsk: this.currentAsk,
-                        currentBid: this.currentBid,
-                        maxAmount: this.maxAmount
-                    })
+                    if(onCS == CS) {        
+                        this.currentAsk = ob.asks[0];
+                        this.currentBid = ob.bids[0];
+                        
+                        this.emit('ob_update', {
+                            pair: this.pair,
+                            currentAsk: this.currentAsk,
+                            currentBid: this.currentBid,
+                            maxAmount: this.maxAmount
+                        })
 
-                } else {
-                    this.checksumCount++;
-                    if(this.checksumCount >= this.checksumLimit) {
-                            //BUG: TypeError: Cannot read property 'ws' of undefined
-                            //console.log(this)
-                            try {
-                                //async function unsub() {return this.ws.unsubscribeOrderBook(this.pair)};
-                                //unsub().then(async () => {
-                                //    await Promise.all(this.ws.subscribeOrderBook(this.pair));
-                                //    console.log(`Resubscribed to ${this.pair}`);  
-                                //    this.checksumCount = 0;
-                                //})
-                            } catch (err) {
-                                console.error(err);
-                            }
+                    } else if (onCS !== CS && typeof onCS !== 'undefined') {
+                        let ob = await this.ws.getOB(this.pair);
+                        let newCS = await ob.checksum();
+
+                        if(newCS == onCS) {
+                            this.currentAsk = ob.asks[0];
+                            this.currentBid = ob.bids[0];
+                            
+                            this.emit('ob_update', {
+                                pair: this.pair,
+                                currentAsk: this.currentAsk,
+                                currentBid: this.currentBid,
+                                maxAmount: this.maxAmount
+                            })
+                        }
                     }
+                } catch(err) {
+                    console.error(err)
                 }
-            } catch(err) {
-                console.error(err)
-            }
             }) 
+
         } else {
             console.log(this)
         }
@@ -359,18 +358,17 @@ class ArbitrageTriangle extends WSv2 {
     setMainPair(mainpair) {
         this.mainpair = mainpair;
         this.mainpair.on('ob_update', (order) => {   
-            /**
-             * ! Need to calculate against every Pair on update
-             * ! Use console.timer() 
-             */ 
+            let oldOrder;
+            
             try {
-                if(typeof this.main !== 'undefined' && (typeof order.currentAsk !== 'undefined' || typeof order.currentBid !== 'undefined')) {
-                    if(this.main.currentAsk[0] !== order.currentAsk[0] || this.main.currentAsk[2] !== order.currentAsk[2] ) { //Array comparison
-                    this.main = order;
-                    for(let base in this._pairs) {
-                        this._calculateArbitrage(this._pairs[base]);
-                    } 
-                 
+                if(typeof this.main == 'undefined') this.main = order;
+
+                if(typeof order.currentAsk !== 'undefined' && typeof order.currentBid !== 'undefined') {
+                    if(order.currentAsk[0] !== this.main.currentAsk[0] || order.currentBid[0] !== this.main.currentBid[0]) {
+                        this.main = order;
+                        for(let base in this._pairs) {
+                            this._calculateArbitrage(this._pairs[base]);
+                        } 
                     }
                 }
             } catch(err) {
