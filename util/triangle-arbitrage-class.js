@@ -79,18 +79,15 @@ class Pair extends EventEmitter {
     }
 
     /**
-     * @description OrderBook Listener
+     * @description Creates OrderBook & checksum listeners.
      */
     _orderBookListener() {
-
-        if(typeof this['ws'] !== 'undefined') {
-            let onCS, CS;
-            this.ws.onOrderBookChecksum( this.orderbook_opts, async (cs) => {
-                onCS = cs;
-            })
-
-            this.ws.onOrderBook( this.orderbook_opts, async (ob) => {
-                try {
+        let onCS, CS;
+        this.ws.onOrderBookChecksum( this.orderbook_opts, async (cs) => {
+            onCS = cs;
+        })
+        this.ws.onOrderBook( this.orderbook_opts, async (ob) => {
+            try {
                     CS = await ob.checksum();
                     if(onCS == CS) {        
                         this.currentAsk = ob.asks[0];
@@ -119,15 +116,11 @@ class Pair extends EventEmitter {
                             })
                         }
                     }
-                } catch(err) {
+            } catch(err) {
                     console.error(err)
-                }
-            }) 
-
-        } else {
-            console.log(this)
-        }
-}
+            }
+        }) 
+    }
 
     /**
      * @description WSv2 Error Listener
@@ -221,8 +214,9 @@ class ArbitrageTriangle extends WSv2 {
     }
 
     /**
-     * @description 
+     * @description returns balance array
      */
+    //REFACTOR: remove promise and use as normal listener?
     async getBal() {
         return new Promise( async (resolve, reject) => {
             await this.onWalletSnapshot('', (bal) => {      
@@ -262,6 +256,9 @@ class ArbitrageTriangle extends WSv2 {
         })           
     }
     
+    /**
+     * @description Sets ArbTri instance orderbook listeners for arb calculations
+     */
     _setPairListeners() {
         try{
             for(let symbol in this._pairs) {
@@ -289,7 +286,6 @@ class ArbitrageTriangle extends WSv2 {
      * 
      * @description Calculates arbitrage opp between mainpair and current pairs 
      */
-
      _calculateArbitrage(obj) {
         if(obj.hasOwnProperty('o1') && obj.hasOwnProperty('o2')) {
             if(obj.o1.pair.substring(1,4) !== obj.o2.pair.substring(1,4)) {
@@ -302,7 +298,8 @@ class ArbitrageTriangle extends WSv2 {
                 let orderAmount1 = obj.o1.currentAsk[2]; // Amount in alt
                 let orderAmount2 = obj.o2.currentBid[2]; // Amount in alt
                 let orderAmountMain = this.main.currentAsk[2] / obj.o1.currentAsk[0]; // Amount in alt;
-
+                
+                //IMPORTANT: profits come from amount disparity between prices
                 //Determine Lowest amount of alt in all markets.
                 let altAmount = Math.min(  
                     Math.abs(orderAmount1), 
@@ -313,18 +310,33 @@ class ArbitrageTriangle extends WSv2 {
                 //altAmount -> altToQuote -> altToBase
                 let altToQuote = altAmount * obj.o2.currentBid[0]; //alt converted to quote (eg. USD)
                 let altToBase = altAmount * obj.o1.currentAsk[0]; //alt amount converted to Base (eg. BTC)
-                this._pairs[obj.base]['currentAltAmount'] = altAmount;
-                this._pairs[obj.base]['currentQuoteAmount'] = altToQuote;
-                this._pairs[obj.base]['currentBaseAmount'] = altToBase;
+                
+                this._pairs[obj.base]['altAmount'] = altAmount; 
+                this._pairs[obj.base]['quoteAmount'] = altToQuote; 
+                this._pairs[obj.base]['baseAmount'] = altToBase;
+                
+                //TODO: Calculate profit based on crossrate and market fees (ask/bid)
+                //Fees:
+                let maker = 0.10, taker = 0.20;
+                this._pairs[obj.base]['altFee'] = (altAmount * taker), 
+                this._pairs[obj.base]['quoteFee'] = (altToQuote * taker), 
+                this._pairs[obj.base]['baseFee'] = (altToBase * taker)
+
+                //No fees
+                let initial = ((obj.o1.currentAsk[0] * altAmount));
+                let final = (initial * crossrate);
+
+                let calculatedProfit = (altAmount * crossrate) - (altAmount * taker);
 
                 let profit = 0.0; //CLIENT: set this from client
                 let spreadArray = this.createSpread(obj.base);
-
+                
+                //! CalculatedProfit amount must be > altAmount in order for profit
                 if(crossrate !== this.crossrate) {
                     if(crossrate >= 1.0 + profit) {
-                        if(this._pairs[obj.base].currentAmount >= this._pairs[obj.base].minAmount) {
+                        if(this._pairs[obj.base].altAmount >= this._pairs[obj.base].minAmount) {
                             if(this.isSending == false) {
-                                console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} min: ${this._pairs[obj.base].minAmount}${obj.base} cur: ${chalk.yellow(this._pairs[obj.base].currentAmount.toFixed(4))}${obj.base}`)
+                                console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.yellow(crossrate.toFixed(4))} min: ${this._pairs[obj.base].minAmount}${obj.base} cur: ${chalk.yellow(this._pairs[obj.base].altAmount.toFixed(4))}${obj.base} calc: ${calculatedProfit.toFixed(4)}${obj.base}`)
                                 this.sendOrders(this._pairs[obj.base],spreadArray);
                             } else {
                                 console.log(`${obj.o1.pair.substring(1,4)} Order in progress`);
@@ -335,7 +347,7 @@ class ArbitrageTriangle extends WSv2 {
 
                     }
                     else 
-                        console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} min: ${this._pairs[obj.base].minAmount}${obj.base} cur: ${this._pairs[obj.base].currentAmount >= this._pairs[obj.base].minAmount ? chalk.yellow(this._pairs[obj.base].currentAmount.toFixed(4)) : chalk.red(this._pairs[obj.base].currentAmount.toFixed(4))}${obj.base}`)
+                        console.log(`${new Date().toISOString()} - [${obj.o1.pair.substring(1)} > ${obj.o2.pair.substring(1)} > ${this.main.pair.substring(1)}] xrate: ${chalk.red(crossrate.toFixed(4))} min: ${this._pairs[obj.base].minAmount}${obj.base} cur: ${this._pairs[obj.base].altAmount >= this._pairs[obj.base].minAmount ? chalk.yellow(this._pairs[obj.base].altAmount.toFixed(4)) : chalk.red(this._pairs[obj.base].altAmount.toFixed(4))}${obj.base} calc: ${calculatedProfit.toFixed(4)}${obj.base}`)
                 }
                 this.crossrate = crossrate;
             }
@@ -381,6 +393,7 @@ class ArbitrageTriangle extends WSv2 {
             } catch(err) {
                 console.error(err);
             }
+
         })
     }
 
@@ -437,12 +450,12 @@ class ArbitrageTriangle extends WSv2 {
      * @param {String} base - base symbol for arbitrage cycle.
      * @returns {Array} array of orders
      */
-    async createSpread(base) {
+    createSpread(base) {
 
         let pair = this._pairs[base]; 
-        
+        //TODO: Refactor based on actual amounts recieved.
         pair['orders'][0] = pair[0].makeOrder(pair.o1.currentAsk[0], (pair.currentAltAmount * -1))
-        pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.currentQuoteAmount)
+        pair['orders'][1] = pair[1].makeOrder(pair.o2.currentBid[0], pair.currentAltAmount) 
         pair['orders'][2] = this.mainpair.makeOrder(this.main.currentAsk[0], (pair.currentBaseAmount * -1))
         
         let pair_Array = [pair[0], pair[1], this.mainpair];
