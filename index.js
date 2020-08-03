@@ -38,12 +38,6 @@ if(process.argv[2] !== 'TEST') {
 /**
  *  Mongodb
  */
-mongoose
-  .connect("mongodb://localhost:27017/bfx", { useNewUrlParser: true })
-  .then(() => 
-    console.log("Connected to MongoDB..."))
-  .catch(err => 
-    console.error("Could not connect to MongoDB..."));
 
 /**
  * Express
