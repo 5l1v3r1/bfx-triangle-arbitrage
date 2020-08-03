@@ -24,9 +24,9 @@ const { EventEmitter } = require('events') //Internal Events
 // ! websocket instance from BFX SETUP, change instance with arg
 const ws = BFX_SETUP.BFX_INSTANCES[process.argv[2]];
 
-var stream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_data.txt'), {flags: 'a'}); // ? Data stream
-var errlog = fs.createWriteStream(path.join(__dirname,"/log/ws_errors.txt"), {flags: 'a'}); // ? Websocket error logging
-var teststream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_test.txt'), {flags: 'a'})
+//var stream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_data.txt'), {flags: 'a'}); // ? Data stream
+//var errlog = fs.createWriteStream(path.join(__dirname,"/log/ws_errors.txt"), {flags: 'a'}); // ? Websocket error logging
+//var teststream = fs.createWriteStream(path.join(__dirname,'/log/arbOpp_test.txt'), {flags: 'a'})
 
 //var api_stream = fs.createWriteStream(path.join(__dirname,'/apikeys.json'));
 var API_KEY = api_obj.test.api_key;
